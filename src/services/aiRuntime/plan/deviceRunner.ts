@@ -14,7 +14,7 @@
  * - claim perdu : on dépose quand même ce qui a été fait (12 §8.2) ; une issue incertaine est `unknown_outcome`.
  */
 import { parseArgRef, type JsonObject, type JsonValue } from '@/assets/utils/aiActionPlan';
-import { fetchPlanView, openAgentResults, sealDevicePhaseResult, type OpenedPlan, type PhaseOutcome, type ServedPlanView } from '../actionPlan';
+import { fetchPlanView, openAgentResults, openPhaseResult, sealDevicePhaseResult, type OpenedPlan, type PhaseOutcome, type ServedPlanView } from '../actionPlan';
 import type { PlanLocalStore } from './planLocal';
 import { creationFailureState } from './deviceErrors';
 import { claimPhase, depositPlanResult, isCode, postProgress, type PlanRoute } from './planApi';
@@ -99,7 +99,21 @@ export async function runDevicePhase(deps: RunnerDeps): Promise<PhaseResult> {
     view = await fetchPlanView(route.api, route.orgId, route.sessionId, route.planId);
     deps.onView?.(view);
     const atClaim = new Map(view.actions.map(a => [a.n, a.state]));
-    const orphans = view.actions.filter(a => a.executor === 'device' && a.state === 'unknown_outcome').map(a => a.n);
+
+    // Phases d'appareil précédentes : relues depuis les `plan_result` scellés conservés ici (l'API ne les
+    // sert pas). Sorties pour contrôler les références, actions déjà portées pour ne pas les rapporter deux fois.
+    const prior = new Map<number, Record<string, string>>();
+    const carried = new Set<number>();
+    for (const p of deps.local.read(route.planId).phases) {
+        if (p.phase >= phase) continue;
+        try {
+            for (const o of await openPhaseResult(deps.ck, route.sessionId, route.planId, 'device', p.phase, opened.graph, p.value)) {
+                carried.add(o.n);
+                if (o.output) prior.set(o.n, o.output);
+            }
+        } catch { /* résultat scellé illisible : ses sorties ne sont pas disponibles, les dépendantes échouent */ }
+    }
+    const orphans = view.actions.filter(a => a.executor === 'device' && a.state === 'unknown_outcome' && !carried.has(a.n)).map(a => a.n);
 
     const local = new Map<number, PhaseOutcome>();
     const started = new Set<number>();
@@ -120,9 +134,10 @@ export async function runDevicePhase(deps: RunnerDeps): Promise<PhaseResult> {
         const recorded = v.actions[m - 1]?.output?.[field];
         if (typeof recorded !== 'string') return null;
         const executor = opened.graph.actions[m - 1]?.executor;
-        const clear = executor === 'agent' ? agentOutputs.get(m)?.[field] : local.get(m)?.output?.[field];
-        if (executor === 'agent' && clear === undefined) return null;
-        if (clear !== undefined && clear !== recorded) return null;
+        // Les deux exécutants exigent une sortie en clair lisible : agent (`plan_agent_result`) ou appareil
+        // (cette phase, ou un `plan_result` scellé d'une phase précédente) ; elle doit égaler celle de l'API.
+        const clear = executor === 'agent' ? agentOutputs.get(m)?.[field] : (local.get(m)?.output ?? prior.get(m))?.[field];
+        if (clear === undefined || clear !== recorded) return null;
         return recorded;
     };
 
@@ -230,6 +245,7 @@ export async function runDevicePhase(deps: RunnerDeps): Promise<PhaseResult> {
         const frame = await sealDevicePhaseResult(deps.ck, route.sessionId, opened.graph, route.planId, phase, outcomes);
         try {
             await depositPlanResult(route, frame);
+            deps.local.addPhase(route.planId, phase, frame.value);
             return { kind: 'done', phase, outcomes };
         } catch (e) {
             // Il reste une action d'appareil prête ou en cours : on relit et on continue (12 §8.2 étape 6).

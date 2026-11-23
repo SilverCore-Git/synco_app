@@ -3,7 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import raw from '../../../../scripts/e2ee-vectors/action-plan.json';
 import { ToolManifest, type JsonObject, type JsonValue, type PlanContext } from '@/assets/utils/aiActionPlan';
 import { AiRuntimeError } from '../errors';
-import { openPhaseResult, openPlan, type OpenedPlan, type ServedPlanView } from '../actionPlan';
+import { openPhaseResult, openPlan, sealDevicePhaseResult, type OpenedPlan, type ServedPlanView } from '../actionPlan';
 import type { ApiPort, HttpMethod } from '../ports';
 import { DeviceHttpError, DeviceNotSentError } from './deviceErrors';
 import { memoryPlanLocalStore } from './planLocal';
@@ -102,14 +102,14 @@ async function opened(): Promise<OpenedPlan> {
     return openPlan({ ck, pendingToolCall: { id: 'call_7', name: 'propose_actions', planId: v.planId, args: v.planValue }, view, context, knownLocalId: (_f, id) => id === SPACE.spaceId });
 }
 
-interface Setup { server: FakeServer; calls: { call: DeviceCall; header: string }[]; sync: number; run: () => ReturnType<typeof runDevicePhase> }
+interface Setup { local: ReturnType<typeof memoryPlanLocalStore>; server: FakeServer; calls: { call: DeviceCall; header: string }[]; sync: number; run: () => ReturnType<typeof runDevicePhase> }
 async function setup(opts: { fail?: number[]; failWith?: Error; concurrency?: number; onExecute?: (n: number, s: FakeServer) => void; recordedId?: (n: number) => string; accepted?: number[] | null } = {}): Promise<Setup> {
     const local = memoryPlanLocalStore();
     if (opts.accepted !== null) local.saveAccepted(v.planId, opts.accepted ?? [1, 2, 3, 4, 5]);
     const server = new FakeServer();
     const o = await opened();
     const calls: Setup['calls'] = [];
-    const st: Setup = { server, calls, sync: 0, run: async () => ({ kind: 'none' }) };
+    const st: Setup = { local, server, calls, sync: 0, run: async () => ({ kind: 'none' }) };
     st.run = () => runDevicePhase({
         route: { api: server, orgId: 'o', sessionId: v.sessionId, planId: v.planId }, deviceId: 'dev1', ck, opened: o, local,
         execute: async (call, header) => {
@@ -175,6 +175,48 @@ describe('phase d’appareil', () => {
         expect(await none.run()).toEqual({ kind: 'none' });
         expect(none.calls).toHaveLength(0);
         expect(none.server.log).toHaveLength(0);
+    });
+
+    /** Reprise après rechargement : 1 à 3 faites par une phase précédente, 4 (dépend de 3) reste à faire. */
+    async function afterPhaseOne(seal: 'valid' | 'tampered' | 'none') {
+        const s = await setup({ concurrency: 1 });
+        s.server.state = ['done', 'done', 'done', 'pending', 'pending'];
+        s.server.status = 'executing';
+        s.server.devicePhases = 1;
+        const outs: Record<string, string>[] = [1, 2, 3].map(n => ({ id: `obj${n}`, spaceId: 'cm3spaceexample0000000001' }));
+        outs.forEach((o, i) => s.server.record(i + 1, o));
+        if (seal !== 'none') {
+            const shown = outs.map((o, i) => ({ n: i + 1, state: 'done' as const, output: seal === 'tampered' && i === 2 ? { ...o, id: 'autre' } : o }));
+            const frame = await sealDevicePhaseResult(ck, v.sessionId, (await opened()).graph, v.planId, 1, shown);
+            s.local.addPhase(v.planId, 1, frame.value);
+        }
+        return s;
+    }
+
+    test('sorties d’une phase d’appareil précédente : relues depuis le plan_result scellé, égales à celles de l’API', async () => {
+        const ok = await afterPhaseOne('valid');
+        await ok.run();
+        expect(ok.calls.map(c => c.call.n)).toEqual([4]);
+        expect(ok.calls[0]!.call.args.folderId).toBe('obj3');
+    });
+    test('sans résultat scellé lisible ou sortie différente de l’API : la dépendante passe « failed », sans appel', async () => {
+        for (const seal of ['none', 'tampered'] as const) {
+            const s = await afterPhaseOne(seal);
+            await s.run();
+            expect(s.calls).toHaveLength(0);
+            expect(s.server.state[3]).toBe('failed');
+        }
+    });
+    test('issue inconnue déjà portée par un dépôt antérieur : non rapportée de nouveau', async () => {
+        const s = await afterPhaseOne('valid');
+        s.server.state = ['pending', 'done', 'unknown_outcome', 'skipped', 'pending'];
+        const frame = await sealDevicePhaseResult(ck, v.sessionId, (await opened()).graph, v.planId, 1, [{ n: 3, state: 'unknown_outcome' }]);
+        s.local.addPhase(v.planId, 1, frame.value);
+        await s.run();
+        expect(s.calls.map(c => c.call.n)).toEqual([1]);
+        const dep = s.server.deposits[0];
+        const outs = await openPhaseResult(ck, v.sessionId, v.planId, 'device', dep!.phase, (await opened()).graph, dep!.value);
+        expect(outs.map(o => o.n)).toEqual([1]);
     });
 
     test('arrêt du plan (PC70) pendant une action : plus aucun démarrage, l’action en cours va à son terme', async () => {
