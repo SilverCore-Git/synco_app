@@ -1443,3 +1443,27 @@ vue-tsc : 0 erreur. `bun test src/services` : 191 réussis, 0 échec.
 
 ### **Reste ouvert**
 `MemberPicker` cherche dans l'annuaire local (aucun endpoint serveur de recherche de membres) ; PC81 « à la création » sans objet (l'API refuse de créer une conversation runtime) ; le manifeste des outils n'a pas de drapeau `sensitive` ; la conversion affichage vers StoredMessage à l'écriture CK horodate tous les messages à l'instant de la synchro.
+
+---
+
+## 📅 **2026-11-23 - Lot L12 : conversation runtime, plan d'action et fichiers de l'agent (partiel)**
+
+**Statut** : 🟡 **PARTIEL** (briques livrées, branchement dans `OrgAI.vue` et recette manuelle à faire)
+
+### **Changements (un commit par point)**
+1. Liaison WebSocket directe (`conversation/connection.ts`, `events.ts`) : reprise, tampon de snapshot, reconnexion, dépôt par l'API.
+2. Modèle de plan (`plan/planModel.ts`, `planLabels.ts`) : intitulés générés par l'app, actions sensibles (échec fermé), sélection et cascade, règle du petit plan PC76, disposition du graphe en colonnes et bandes (groupes repliés au-delà de 30 actions).
+3. Suivi et bilan (`plan/planProgress.ts`) : états par action, jauge, bandeaux PC54 et PC55, codes d'abandon PC74, bilan, plan expiré PC62.
+4. Écrans : `PlanCard`, `PlanGraphWindow` (validation, suivi, revue), `PlanGraph`, `PlanActionCard`, `PlanActionDetail`, `PlanList` (mobile), `PlanSummary`. Arrêt par `ConfirmDelete`, aucun `v-html`.
+5. `plan/planSession.ts` : chargement et décision ; PC76 revérifiée sur le plan déchiffré (la carte ne peut pas accepter un plan de plus de 5 actions ou sensible), `serverDigests` recalculés (PC69).
+6. `MessageAttachments.vue` : taille en o/Ko/Mo, source de téléchargement, ouverture et « Enregistrer dans un espace » fournies par l'appelant ; `artifacts/` : interface de source, nom assaini, empreinte vérifiée, Markdown rendu sans HTML, visionneuse, sélecteur d'espace.
+7. `aiUsageStats.ts` : `recordRuntimeUsage` (sessionId, régime runtime, dédoublonné par message).
+
+### **Vérifications**
+vue-tsc : 0 erreur (sonde volontaire détectée, `.vue` compris). `bun test src/services` : voir compte rendu.
+
+### **Reste ouvert**
+- Branchement de `RuntimeConnection`, de `PlanCard` et de `PlanGraphWindow` dans `OrgAI.vue` / dock (L13) ; appel de `recordRuntimeUsage` sur les trames `usage`.
+- Format de stockage des artefacts (L00g) : seule l'interface `ArtifactSource` existe.
+- Usage par message dans l'historique rejoué : non vérifié (à signaler pour L07c / L08b).
+- Recette manuelle Firefox : comparer aux captures `C3_maquettes/png` (plan, suivi, artefact, états), plan de 100 actions, mobile, fermer puis rouvrir l'onglet.
