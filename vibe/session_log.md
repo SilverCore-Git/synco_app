@@ -1388,3 +1388,35 @@ Corriger les constats de la revue crypto de `src/services/aiRuntime/`, un commit
 ### **Prochaines Étapes**
 1. L10 : fonction qui construit le corps de `switch-to-runtime`, à brancher par `setSwitchBodyBuilder`.
 2. Recette manuelle Firefox avec un vrai runtime (porte D), `defaults.ts` (sfetch, CORS, socket), comparaison aux captures C3.
+
+---
+
+## 📅 **2026-11-23 - Lot L10b : corps de `switch-to-runtime` (bascule d'une conversation existante)**
+
+**Priorité** : ⭐⭐⭐⭐⭐ (Haute)  
+**Complexité** : Élevée  
+**Statut** : ✅ **TERMINÉ** (recette manuelle Firefox avec un vrai runtime à faire)
+
+### **Objectif**
+Construire le corps de `POST …/ai/sessions/:sessionId/switch-to-runtime` (04 §5, 03 §6.2 à §6.4) et le brancher par `setSwitchBodyBuilder` : « Faire tourner sur le runtime » fonctionne pour une conversation existante.
+
+### **Changements**
+- `src/services/aiRuntime/switchBody.ts` : `buildSwitchToRuntimeBody` / `createSwitchBodyBuilder`. Ordre : DK de CETTE délégation en mémoire (sinon `delegation_unusable`, rien lu ni enregistré) → `GET` de la conversation (`rev` = `baseRev`) → `CK` existante (`GET …/key` `200` ouverte par `deps.keys`, sinon `conversation_key_unavailable`, jamais de CK neuve) ou tirée → `registerRuntimeConversation` (PC81) → `sealConversationEntry` (`convEntry`) → historique rechiffré sous `CK` → titre (≤ 60 caractères) → `convKey` (RSA-OAEP pour soi + FC4 `aiconv:<sessionId>`) si la CK est neuve → bornes.
+- Formats lus (03 §6.4) : `StoredMessage[]` en clair ; champs `gcm1:` sous `AiSessionKey` (sans placeholder : un champ illisible arrête la bascule) ; format d'affichage d'OrgAI (blob `isE2EE`, que `GET /ai/sessions/:id` rend vide : repris de l'historique affiché) ; `conv-gcm1-v1` relu en strict puis renvoyé tel quel.
+- Bornes de `switchToRuntimeSchema` : 20 000 messages, 64 appels par message, nom ≤ 64, `createdAt` ≤ 40, 8 Mio, titre chiffré ≤ 1024, identifiants `[A-Za-z0-9_-]{1,64}` (réécrits en UUID à la conversion, `toolCallId` suit).
+- `delegation.ts` : `sealConversationEntry`, `forgetRuntimeConversation` ; `aiActionPlan.ts` : `encryptAiFieldStrict` ; `keyEnvelope.ts` : `signKeyEnvelope(…, signKey)`.
+- `aiRuntimeUi.ts` : délégation recréée si la DK n'est pas en mémoire ; conversation retirée du registre si la bascule échoue ; trois nouveaux codes expliqués. `aiRuntimeSwitch.ts` branche le constructeur depuis `RuntimeSwitchControl.vue`.
+
+### **Tests**
+`switchBody.test.ts` (21) : aller-retour avec le banc de L10 (DK ouverte par la `kex` du faux runtime, entrée `conv` → CK, CK = déchiffrement RSA, enveloppe FC4 vérifiée), historique déchiffré = original, CK réutilisée, bornes, aucun clair hors du chiffré, échec fermé, vecteurs `conversation-fields.json` rejoués (lecture stricte, écriture à IV figé octet pour octet). `bun test src/services` : 168 réussis ; `vue-tsc` : 0 erreur.
+
+### **Choix provisoires (à valider)**
+- Conversion du format d'affichage → `StoredMessage[]` (03 §6.4 « à valider par L11 ») : messages `system` écartés, `mutating` absent → `false`, statut absent → `done`, catégorie absente → `client`.
+- Historique au-delà des bornes : refus (`history_too_large`), pas de troncature.
+- `conv-gcm1-v1` : valeurs renvoyées telles quelles après relecture stricte (pas de rechiffrement).
+
+**Date** : 2026-11-23
+
+### **Prochaines Étapes**
+1. Recette manuelle Firefox : bascule d'une conversation claire, gateway et client ; retour local puis retour runtime (CK conservée).
+2. Le blob `isE2EE` reste invisible par `GET /ai/sessions/:id` (l'API ne rend que les tableaux) : seul l'appareil qui l'affiche peut le basculer.
