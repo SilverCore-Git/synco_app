@@ -49,6 +49,7 @@
                     <span class="bg-(--primary)" :style="{ width: gaugeParts.running + '%' }" />
                     <span class="bg-red-500" :style="{ width: gaugeParts.failed + '%' }" />
                 </div>
+                <p v-if="f.autoAccepted" class="mt-2 text-xs text-(--text2)"><i class="bi bi-check2-circle" /> Accepté automatiquement (« Toujours accepter »). Vous pouvez l'arrêter à tout moment.</p>
                 <button type="button" class="mt-3 w-full rounded-lg bg-(--text)/8 px-3 py-2 text-sm font-semibold" @click="openMode = 'follow'">Suivre le plan</button>
             </div>
 
@@ -79,6 +80,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue';
 import { openedOrg } from '@/assets/var';
+import useSettingsItem from '@/composables/useSettingsItem';
+import { parseAutoAccept } from '@/services/aiAutoAccept';
 import { addMissingEntries, openConversationKey } from '@/services/aiRuntime';
 import { loadToolManifest } from '@/services/agent/clientAgent';
 import { runtimeDeps } from '@/services/aiRuntimeUi';
@@ -158,6 +161,8 @@ async function init(): Promise<void> {
             return call && call.id === props.toolCallId ? call : null;
         },
         now: () => Date.now(),
+        // Réglage du compte « Toujours accepter » de cette org, relu à chaque plan.
+        autoAccept: () => parseAutoAccept(useSettingsItem(`ai_auto_accept_${props.orgId}`, '[]').Item.value),
     });
     startRunner(flow.value, deps, ck);
     await flow.value.load();

@@ -24,13 +24,13 @@ function server(status: string, calls: { method: string; path: string; body: unk
     };
 }
 
-function flow(status: string, pending: typeof call | null = call, digestOverride?: Record<string, string>) {
+function flow(status: string, pending: typeof call | null = call, digestOverride?: Record<string, string>, auto?: string[], flags?: { name: string; sensitive?: boolean }[]) {
     const calls: { method: string; path: string; body: unknown }[] = [];
     const session: PlanSessionDeps = {
-        ck, orgId: 'o', sessionId: v.sessionId, context, knownLocalId: (_f, id) => id === SPACE.spaceId, resolver: noResolver,
+        ck, orgId: 'o', sessionId: v.sessionId, context, knownLocalId: (_f, id) => id === SPACE.spaceId, resolver: noResolver, flags,
         api: { request: server(status, calls, digestOverride) },
     };
-    return { calls, f: usePlanFlow({ session, pendingCall: async () => pending, now: () => Date.UTC(2026, 10, 23) }) };
+    return { calls, f: usePlanFlow({ session, pendingCall: async () => pending, now: () => Date.UTC(2026, 10, 23), autoAccept: auto ? () => auto : undefined }) };
 }
 
 describe('usePlanFlow', () => {
@@ -68,5 +68,29 @@ describe('usePlanFlow', () => {
         const { f } = flow('proposed', null);
         await f.load();
         expect(f.status.value).toBe('ended');
+    });
+
+    const ALL = ['thread.create', 'folder.create', 'file.create_text', 'server.call:create_task'];
+    test('« Toujours accepter » : petit plan entièrement dans la liste, accepté sans clic', async () => {
+        const { f, calls } = flow('proposed', call, undefined, ALL);
+        await f.load();
+        expect(f.status.value).toBe('following');
+        expect(f.autoAccepted.value).toBe(true);
+        expect(calls.filter(c => c.method === 'POST')).toHaveLength(1);
+    });
+    test('« Toujours accepter » : une action hors liste ou marquée sensible, le clic reste demandé', async () => {
+        const a = flow('proposed', call, undefined, ALL.filter(k => k !== 'folder.create'));
+        await a.f.load();
+        expect(a.f.status.value).toBe('proposed');
+        const b = flow('proposed', call, undefined, ALL, [{ name: 'create_task', sensitive: true }]);
+        await b.f.load();
+        expect(b.f.status.value).toBe('proposed');
+        expect(b.calls.some(c => c.method === 'POST')).toBe(false);
+    });
+    test('sans réglage : jamais d’acceptation automatique', async () => {
+        const { f } = flow('proposed');
+        await f.load();
+        expect(f.autoAccepted.value).toBe(false);
+        expect(f.status.value).toBe('proposed');
     });
 });

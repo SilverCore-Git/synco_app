@@ -10,6 +10,7 @@ import { acceptPlan, loadPlan, rejectInvalidPlan, rejectPlan, type LoadedPlan, t
 import { buildProgress, type Progress } from './planProgress';
 import type { PhaseOutcome } from '../actionPlan';
 import { stopPlan } from './planApi';
+import { canAutoAccept } from './planAutoAccept';
 
 export type FlowStatus = 'idle' | 'loading' | 'proposed' | 'following' | 'invalid' | 'ended' | 'error';
 export type ReadyPlan = Extract<LoadedPlan, { state: 'ready' }>;
@@ -19,6 +20,8 @@ export interface PlanFlowDeps {
     /** `pendingToolCall` de la conversation (API) ; `null` s'il n'y en a pas. */
     pendingCall(): Promise<PendingPlanCall | null>;
     now(): number;
+    /** Liste « Toujours accepter » de l'utilisateur pour cette org (`ai_auto_accept_<orgId>`), déjà lue et filtrée. */
+    autoAccept?(): readonly string[];
 }
 
 const TERMINAL = new Set(['done', 'failed', 'interrupted', 'rejected', 'stopped', 'expired']);
@@ -45,6 +48,8 @@ export function usePlanFlow(deps: PlanFlowDeps) {
     const localAccepted = ref<number[] | null>(null);
     /** Une action d'appareil attend un autre appareil (claim tenu ailleurs). */
     const otherDevice = ref(false);
+    /** Le plan a été accepté par « Toujours accepter » (affiché à l'utilisateur, qui peut l'arrêter). */
+    const autoAccepted = ref(false);
 
     const expired = computed(() => {
         const at = view.value?.expiresAt ?? loaded.value?.model.expiresAt ?? 0;
@@ -76,10 +81,22 @@ export function usePlanFlow(deps: PlanFlowDeps) {
             loaded.value = result;
             view.value = result.view;
             status.value = result.view.status === 'proposed' ? 'proposed' : 'following';
+            await maybeAutoAccept();
         } catch (e) {
             status.value = 'error';
             fail(e);
         }
+    }
+
+    /**
+     * « Toujours accepter » (PC42) : seulement un plan encore à décider, non expiré, dont toutes les
+     * actions sont dans la liste blanche et qui tient dans la carte (PC76, revérifiée par `acceptPlan`).
+     */
+    async function maybeAutoAccept(): Promise<void> {
+        const l = loaded.value;
+        const saved = deps.autoAccept?.() ?? [];
+        if (!l || status.value !== 'proposed' || expired.value || !canAutoAccept(l.model, saved, deps.session.flags)) return;
+        if (await accept(l.model.actions.map(a => a.n), 'card')) autoAccepted.value = true;
     }
 
     /** Relit la vue servie (après une décision, un push `ai:session-status`, une action…). */
@@ -132,7 +149,7 @@ export function usePlanFlow(deps: PlanFlowDeps) {
 
     const setOtherDevice = (v: boolean): void => { otherDevice.value = v; };
 
-    return { setOtherDevice, stop, status, loaded, view, invalidCode, error, busy, otherDevice, expired, progress, finished, localAccepted, load, refresh, accept, reject };
+    return { autoAccepted, setOtherDevice, stop, status, loaded, view, invalidCode, error, busy, otherDevice, expired, progress, finished, localAccepted, load, refresh, accept, reject };
 }
 
 export type PlanFlow = ReturnType<typeof usePlanFlow>;
