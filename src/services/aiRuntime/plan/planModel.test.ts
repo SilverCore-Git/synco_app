@@ -99,3 +99,32 @@ describe('graphe', () => {
         expect(l.bands.find(b => b.id === 'g')!.collapsed).toBe(true);
     });
 });
+
+import { buildProgress, failureBanner, gauge, summaryLines, summaryTitle, transitiveDependents, dockLabel } from './planProgress';
+
+describe('suivi et bilan', () => {
+    const m = buildPlanModel(opened([
+        cat('A'), { kind: 'thread.create', args: { name: 'b', type: 'text' }, after: [1] }, { kind: 'thread.create', args: { name: 'c', type: 'text' }, after: [2] },
+        cat('D'),
+    ]), dir);
+    test('états, compteurs et retirées', () => {
+        const p = buildProgress(m, [1, 2, 3], [{ n: 1, state: 'done' }], new Set([2]));
+        expect([...p.byAction.values()].map(a => a.state)).toEqual(['done', 'executing', 'pending', 'removed']);
+        expect([p.total, p.done, p.running, p.pending, p.removed, p.finished]).toEqual([3, 1, 1, 1, 1, false]);
+        expect(dockLabel(p)).toBe('Plan 1 / 3');
+        expect(Math.round(gauge(p).done)).toBe(33);
+    });
+    test('un échec annule les dépendantes transitives seulement (PC54)', () => {
+        expect(transitiveDependents(m, 1, new Set([1, 2, 3, 4]))).toEqual([2, 3]);
+        const p = buildProgress(m, [1, 2, 3, 4], [{ n: 4, state: 'failed' }]);
+        expect(failureBanner(m, [1, 2, 3, 4], p)).toContain('Ici aucune');
+        const q = buildProgress(m, [1, 2, 3, 4], [{ n: 1, state: 'failed', code: 'rate_limited' }, { n: 2, state: 'skipped' }, { n: 3, state: 'skipped' }]);
+        expect(failureBanner(m, [1, 2, 3, 4], q)).toContain('2 actions');
+        expect(summaryLines(m, q)[0]!.reason).toContain('Trop de demandes');
+    });
+    test('bilan d’un plan expiré : jamais démarrées comptées', () => {
+        const p = buildProgress(m, [1, 2, 3, 4], [{ n: 1, state: 'done' }]);
+        expect(p.finished).toBe(false);
+        expect(summaryTitle(p, true)).toBe('Plan expiré : 1 action faite, 3 jamais démarrées');
+    });
+});
