@@ -1336,3 +1336,24 @@ Toute la cryptographie côté client du mode runtime de Synco AI, sans UI : `syn
 ### **Prochaines Étapes**
 1. L11 : écrans (réglages, première vue, clé changée, appairage) branchés sur `src/services/aiRuntime`.
 2. Recette manuelle navigateur avec un vrai runtime (CORS, défi, dépôt, synchro).
+
+---
+
+## 📅 **2026-11-23 - Corrections de la revue cryptographique du lot L10**
+
+**Priorité** : ⭐⭐⭐⭐⭐ (Haute)  
+**Complexité** : Moyenne  
+**Statut** : ✅ **TERMINÉ**
+
+### **Objectif**
+Corriger les constats de la revue crypto de `src/services/aiRuntime/`, un commit par point, chacun avec un test qui échoue sans lui.
+
+### **Changements**
+- **Délégation de `CK` hors périmètre** : l'enveloppe FC4 signe `aiconv:<sessionId>` seul (ni org ni mode, et optionnelle) : elle ne peut pas prouver l'org. Une `conv` n'est ouverte et déléguée que si elle figure dans le registre local `rt-conv:<user>:<org>` (`registerRuntimeConversation`, à appeler par L11 à la bascule, à la création et à l'ouverture d'une conversation runtime de l'org). `/current/missing` n'alimente jamais le registre. Échec fermé.
+- **Mode du résumé** : `h.mode` (DK en mémoire) sinon mandat relu et vérifié ; `plan` si invérifiable ; jamais le champ servi.
+- `first_seen_after_change` rend la dernière empreinte archivée ; la fiche directe doit annoncer l'orgId courante ; `acceptNewRuntimeKey` épingle après la vérification finale ; `openPlan` exige `status === 'proposed'` (statut réel de l'API avant décision) et `actionCount` cohérent ; erreur typée `delegation_duration_too_short` ; commentaire sur `rt-mode`.
+
+### **Limites**
+- Une conversation runtime créée sur un autre appareil n'est déléguée qu'après avoir été ouverte ici (L11 doit appeler `registerRuntimeConversation`).
+
+**Date** : 2026-11-23
