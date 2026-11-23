@@ -22,6 +22,11 @@
                 :is-last="isLastPart(i)"
             />
 
+            <div v-else-if="part.type === 'plan'" class="flex gap-3">
+                <TimelineGutter status="done" :is-last="isLastPart(i)" />
+                <div class="flex-1 min-w-0 pb-4"><slot name="plan" :tool-call-id="part.toolCallId" /></div>
+            </div>
+
         </template>
 
         <div v-if="parts.length === 0 && isGenerating" class="flex gap-1 py-1">

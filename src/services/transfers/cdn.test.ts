@@ -90,6 +90,18 @@ describe("envoi", () => {
         expect(upload.partCount).toBe(3);
     });
 
+    test("plan d'action : X-Synco-Plan part à l'ouverture seulement, jamais dans le corps ni vers le CDN", async () => {
+        apiRoute = () => ({ status: 201, body: ticket(1) });
+        cdnRoute = () => ({ status: 201, body: {} });
+        await CdnUpload.open({ ...request, planHeader: "plan1/4" }, signal());
+        expect(apiCalls[0].headers).toEqual({ "X-Synco-Plan": "plan1/4" });
+        expect(apiCalls[0].body.planHeader).toBeUndefined();
+        expect(cdnCalls[0].headers["X-Synco-Plan"]).toBeUndefined();
+        apiCalls.length = 0;
+        await CdnUpload.open(request, signal());
+        expect(apiCalls[0].headers["X-Synco-Plan"]).toBeUndefined();
+    });
+
     test("remplacement : route replace, sans champs de destination", async () => {
         apiRoute = () => ({ status: 201, body: ticket(1) });
         cdnRoute = () => ({ status: 201, body: {} });

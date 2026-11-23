@@ -1443,3 +1443,66 @@ vue-tsc : 0 erreur. `bun test src/services` : 191 réussis, 0 échec.
 
 ### **Reste ouvert**
 `MemberPicker` cherche dans l'annuaire local (aucun endpoint serveur de recherche de membres) ; PC81 « à la création » sans objet (l'API refuse de créer une conversation runtime) ; le manifeste des outils n'a pas de drapeau `sensitive` ; la conversion affichage vers StoredMessage à l'écriture CK horodate tous les messages à l'instant de la synchro.
+
+---
+
+## 📅 **2026-11-23 - Lot L12 : conversation runtime, plan d'action et fichiers de l'agent (partiel)**
+
+**Statut** : 🟡 **PARTIEL** (briques livrées, branchement dans `OrgAI.vue` et recette manuelle à faire)
+
+### **Changements (un commit par point)**
+1. Liaison WebSocket directe (`conversation/connection.ts`, `events.ts`) : reprise, tampon de snapshot, reconnexion, dépôt par l'API.
+2. Modèle de plan (`plan/planModel.ts`, `planLabels.ts`) : intitulés générés par l'app, actions sensibles (échec fermé), sélection et cascade, règle du petit plan PC76, disposition du graphe en colonnes et bandes (groupes repliés au-delà de 30 actions).
+3. Suivi et bilan (`plan/planProgress.ts`) : états par action, jauge, bandeaux PC54 et PC55, codes d'abandon PC74, bilan, plan expiré PC62.
+4. Écrans : `PlanCard`, `PlanGraphWindow` (validation, suivi, revue), `PlanGraph`, `PlanActionCard`, `PlanActionDetail`, `PlanList` (mobile), `PlanSummary`. Arrêt par `ConfirmDelete`, aucun `v-html`.
+5. `plan/planSession.ts` : chargement et décision ; PC76 revérifiée sur le plan déchiffré (la carte ne peut pas accepter un plan de plus de 5 actions ou sensible), `serverDigests` recalculés (PC69).
+6. `MessageAttachments.vue` : taille en o/Ko/Mo, source de téléchargement, ouverture et « Enregistrer dans un espace » fournies par l'appelant ; `artifacts/` : interface de source, nom assaini, empreinte vérifiée, Markdown rendu sans HTML, visionneuse, sélecteur d'espace.
+7. `aiUsageStats.ts` : `recordRuntimeUsage` (sessionId, régime runtime, dédoublonné par message).
+
+### **Vérifications**
+vue-tsc : 0 erreur (sonde volontaire détectée, `.vue` compris). `bun test src/services` : voir compte rendu.
+
+### **Reste ouvert**
+- Branchement de `RuntimeConnection`, de `PlanCard` et de `PlanGraphWindow` dans `OrgAI.vue` / dock (L13) ; appel de `recordRuntimeUsage` sur les trames `usage`.
+- Format de stockage des artefacts (L00g) : seule l'interface `ArtifactSource` existe.
+- Usage par message dans l'historique rejoué : non vérifié (à signaler pour L07c / L08b).
+- Recette manuelle Firefox : comparer aux captures `C3_maquettes/png` (plan, suivi, artefact, états), plan de 100 actions, mobile, fermer puis rouvrir l'onglet.
+
+## 📅 **2026-11-23 - Lot L12 (suite) : conversation runtime branchée, phase d'appareil, « Toujours accepter »**
+
+**Statut** : 🟢 branchement fait ; recette manuelle Firefox à faire.
+
+### **Changements (un commit par étape)**
+1. `OrgAI.vue` consomme `AgentEventSource` (`RuntimeEventSource` sur `RuntimeConnection`, `useRuntimeConversation`, `transcript.ts`) : messages, outils, états de 08, bandeau du lien (hors ligne = lecture seule), messages « en file », confirmation, réponse, annulation (vaut arrêt du plan, PC70), `recordRuntimeUsage` sur les trames `usage`, carte de plan dans le fil (`RuntimePlanPanel.vue`, part `plan`), fenêtre du graphe depuis la carte.
+2. Phase d'appareil (`plan/deviceRunner.ts`, `runnerLoop.ts`, `planApi.ts`, `deviceActions.ts`) : claim, actions prêtes (4 en parallèle), `progress`, `plan_result` scellé (`sealDevicePhaseResult`) déposé, arrêt, cascade PC54, reprise après rechargement (claim expiré, issue `unknown_outcome`), jamais de relance d'une action `executing`. Actions : `category.create`, `thread.create`, `folder.create`, `file.create_text`, en-tête `X-Synco-Plan` (jusqu'à `/api/cdn/transfers/uploads`).
+3. « Toujours accepter » (`planAutoAccept.ts`) : petit plan (PC76) dont toutes les actions sont dans `ai_auto_accept_<orgId>` et admises par la liste blanche ; jamais de sensible.
+4. Passe design : comparaison aux captures C3 plan et états ; textes d'état alignés (plan illisible, plan clos). Le skill est orienté pages ; le style expressif existant est conservé.
+
+### **Reste ouvert**
+- Recette manuelle (Firefox) : flux WebSocket réel, création réelle des 4 types d'action, mobile, fermer/rouvrir l'onglet.
+- Envoi d'image `request_image_upload` vers le runtime non pris en charge (format de `ref` à fixer) ; démarrage d'une nouvelle conversation runtime depuis l'app non traité.
+- Règle 7 : un `folderId` littéral n'est pas vérifié localement (arbre des dossiers non chargé). `maxLifetimeSecs` = plafond 7 j. Sorties d'appareil d'une phase précédente après rechargement : prises de l'API (pas de double contrôle).
+- Dock (L13), usage par message dans l'historique rejoué (à signaler L07c/L08b).
+
+## 📅 **2026-11-23 - Lot L12 (corrections de revue) : plan d'action côté app et « Toujours accepter »**
+
+**Statut** : 🟢 9 constats corrigés, un commit par point (3 et 8 ensemble, même fonction du runner).
+
+### **Changements**
+1. « Toujours accepter » : lecture de `GET …/feature-policies/me` (`readAutoAcceptPolicy`, client L11 `fetchMyFeatures`) ; `canAutoAccept` exige `policyAllowed` ; lecture échouée = refus (échec fermé) ; droit retiré = liste `ai_auto_accept_<orgId>` vidée.
+2. Exécution = intersection entre l'état servi et l'ensemble accepté sur l'appareil (`planLocal.ts`, `localStorage`, clé `synco_plan_local:<org>:<session>:<plan>`) ; ensemble inconnu = rien exécuté.
+3. Sorties des phases d'appareil précédentes relues depuis les `plan_result` scellés conservés localement (`openPhaseResult`), égalité exigée avec l'API ; sans résultat lisible la dépendante passe `failed`.
+4. Erreur de transport après envoi : `unknown_outcome` ; `failed` seulement sur 4xx/5xx ou contrôle local avant envoi (`deviceErrors.ts`).
+5. Carte inline : lieu (`a.place`, ambre si inconnu), cible par `argsRefs` (« dans l'espace créé par l'action m », aussi dans `argLines`) ; lieu inconnu = `isSmallPlan` faux (ni carte inline ni acceptation sans clic).
+6. Groupe replié : « N actions cochées » (`countChecked`) ; le bouton d'acceptation affichait déjà le compte exact ; les sensibles restent dans leur bande, jamais repliée ni précochée.
+7. `deviceId` stable par appareil (`stableDeviceId`).
+8. Orphelins `unknown_outcome` déjà portés par un dépôt antérieur : non rapportés de nouveau.
+9. Clés des membres d'un salon d'org résolues par lots de 8 (`mapBounded`).
+
+### **Vérifications**
+vue-tsc 0 erreur ; `bun test src/services` : 281 réussis.
+
+### **Reste ouvert**
+- Les `plan_result` d'appareil ne sont pas servis par l'API : une phase déposée par un AUTRE appareil n'est pas relisible ici (ses dépendantes passent `failed`). Un `plan_result` servi (ou relu depuis la boîte) lèverait ce cas.
+- Une action restée `executing` sans aucune action prête n'est reprise qu'à l'expiration du claim par un nouveau claim (comportement inchangé).
+- Recette manuelle Firefox : reprise après rechargement, carte avec lieu inconnu, groupe replié (plan de 100 actions).

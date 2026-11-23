@@ -11,11 +11,14 @@ export const createFolderRequest = async (
     spaceId: string,
     orgId: string,
     name: string,
-    parentId?: string | null
+    parentId?: string | null,
+    /** `X-Synco-Plan: <planId>/<n>` quand un plan d'action crée le dossier (12 §8.5) ; sans effet sur les droits. */
+    planHeader?: string
 ): Promise<Folder> => {
 
     const res = await sfetch(`/api/spaces/${spaceId}/folders`, {
         method: 'POST',
+        ...(planHeader ? { headers: { 'X-Synco-Plan': planHeader } } : {}),
         body: JSON.stringify({
             orgId,
             name,
@@ -25,7 +28,8 @@ export const createFolderRequest = async (
 
     if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Impossible de créer le dossier");
+        // `status` : un plan d'action distingue un refus de l'API (4xx/5xx) d'une erreur de transport.
+        throw Object.assign(new Error(data.error || "Impossible de créer le dossier"), { status: res.status });
     }
 
     return await res.json();
@@ -41,6 +45,8 @@ export interface CreateTextFileOptions {
     content?: string;
     folderId?: string | null;
     onProgress?: (percent: number) => void;
+    /** `X-Synco-Plan: <planId>/<n>` quand un plan d'action crée le fichier (12 §8.5). */
+    planHeader?: string;
 }
 
 // Crée un fichier texte UTF-8 et le pousse par la voie normale d'upload, donc
@@ -70,6 +76,7 @@ export const createTextFile = async (options: CreateTextFileOptions): Promise<St
         {
             workspaceId: options.spaceId,
             folderId: !options.folderId || options.folderId === 'root' ? undefined : options.folderId,
+            planHeader: options.planHeader,
         },
         options.onProgress
     );
