@@ -1483,3 +1483,26 @@ vue-tsc : 0 erreur (sonde volontaire détectée, `.vue` compris). `bun test src/
 - Envoi d'image `request_image_upload` vers le runtime non pris en charge (format de `ref` à fixer) ; démarrage d'une nouvelle conversation runtime depuis l'app non traité.
 - Règle 7 : un `folderId` littéral n'est pas vérifié localement (arbre des dossiers non chargé). `maxLifetimeSecs` = plafond 7 j. Sorties d'appareil d'une phase précédente après rechargement : prises de l'API (pas de double contrôle).
 - Dock (L13), usage par message dans l'historique rejoué (à signaler L07c/L08b).
+
+## 📅 **2026-11-23 - Lot L12 (corrections de revue) : plan d'action côté app et « Toujours accepter »**
+
+**Statut** : 🟢 9 constats corrigés, un commit par point (3 et 8 ensemble, même fonction du runner).
+
+### **Changements**
+1. « Toujours accepter » : lecture de `GET …/feature-policies/me` (`readAutoAcceptPolicy`, client L11 `fetchMyFeatures`) ; `canAutoAccept` exige `policyAllowed` ; lecture échouée = refus (échec fermé) ; droit retiré = liste `ai_auto_accept_<orgId>` vidée.
+2. Exécution = intersection entre l'état servi et l'ensemble accepté sur l'appareil (`planLocal.ts`, `localStorage`, clé `synco_plan_local:<org>:<session>:<plan>`) ; ensemble inconnu = rien exécuté.
+3. Sorties des phases d'appareil précédentes relues depuis les `plan_result` scellés conservés localement (`openPhaseResult`), égalité exigée avec l'API ; sans résultat lisible la dépendante passe `failed`.
+4. Erreur de transport après envoi : `unknown_outcome` ; `failed` seulement sur 4xx/5xx ou contrôle local avant envoi (`deviceErrors.ts`).
+5. Carte inline : lieu (`a.place`, ambre si inconnu), cible par `argsRefs` (« dans l'espace créé par l'action m », aussi dans `argLines`) ; lieu inconnu = `isSmallPlan` faux (ni carte inline ni acceptation sans clic).
+6. Groupe replié : « N actions cochées » (`countChecked`) ; le bouton d'acceptation affichait déjà le compte exact ; les sensibles restent dans leur bande, jamais repliée ni précochée.
+7. `deviceId` stable par appareil (`stableDeviceId`).
+8. Orphelins `unknown_outcome` déjà portés par un dépôt antérieur : non rapportés de nouveau.
+9. Clés des membres d'un salon d'org résolues par lots de 8 (`mapBounded`).
+
+### **Vérifications**
+vue-tsc 0 erreur ; `bun test src/services` : 281 réussis.
+
+### **Reste ouvert**
+- Les `plan_result` d'appareil ne sont pas servis par l'API : une phase déposée par un AUTRE appareil n'est pas relisible ici (ses dépendantes passent `failed`). Un `plan_result` servi (ou relu depuis la boîte) lèverait ce cas.
+- Une action restée `executing` sans aucune action prête n'est reprise qu'à l'expiration du claim par un nouveau claim (comportement inchangé).
+- Recette manuelle Firefox : reprise après rechargement, carte avec lieu inconnu, groupe replié (plan de 100 actions).
