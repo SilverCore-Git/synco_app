@@ -14,10 +14,13 @@ import { openedOrg, user } from '@/assets/var';
 import { createFolderRequest, createTextFile } from '@/services/fileActions';
 import type { Category, Thread, User } from '@/types/types';
 import type { DeviceCall } from './deviceRunner';
+import { mapBounded } from './bounded';
 import { DeviceHttpError, DeviceNotSentError } from './deviceErrors';
 import { pickCategory } from './pickCategory';
 
 const PLAN_HEADER = 'X-Synco-Plan';
+/** Résolutions de clés de membres en parallèle (salon d'org : des centaines de membres). */
+const KEY_BATCH = 8;
 
 const str = (v: JsonObject[string] | undefined): string | undefined => (typeof v === 'string' ? v : undefined);
 
@@ -58,14 +61,15 @@ async function createThread(args: JsonObject, header: string): Promise<Record<st
     if (!members.some(m => m.id === me.id)) members = [...members, me];
 
     const threadKey = await generateThreadKey();
-    const keys: { userId: string; encryptedKey: string }[] = [];
-    for (const member of members) {
-        if (typeof member.publicKey !== 'string' || !member.publicKey.trim().startsWith('{')) continue;
+    // Résolution des clés des membres par lots bornés (une org compte des centaines de membres) ; un membre
+    // dont la clé est absente ou a changé (FC1, clé épinglée) est écarté, jamais contourné.
+    const resolved = await mapBounded(members, KEY_BATCH, async (member): Promise<{ userId: string; encryptedKey: string } | null> => {
+        if (typeof member.publicKey !== 'string' || !member.publicKey.trim().startsWith('{')) return null;
         try {
-            // Clé épinglée (FC1) : un membre dont la clé a changé est écarté, jamais contourné.
-            keys.push({ userId: member.id, encryptedKey: await encryptThreadKeyForMember(threadKey, await resolveRecipientKey(member.id, member.publicKey)) });
-        } catch { continue; }
-    }
+            return { userId: member.id, encryptedKey: await encryptThreadKeyForMember(threadKey, await resolveRecipientKey(member.id, member.publicKey)) };
+        } catch { return null; }
+    });
+    const keys = resolved.filter((k): k is { userId: string; encryptedKey: string } => k !== null);
     if (keys.length === 0) throw new DeviceNotSentError('no_valid_key');
 
     const type = args.type === 'voice' ? 'vocal' : 'text';
