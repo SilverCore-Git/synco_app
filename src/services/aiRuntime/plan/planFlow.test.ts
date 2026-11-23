@@ -24,13 +24,13 @@ function server(status: string, calls: { method: string; path: string; body: unk
     };
 }
 
-function flow(status: string, pending: typeof call | null = call, digestOverride?: Record<string, string>, auto?: string[], flags?: { name: string; sensitive?: boolean }[]) {
+function flow(status: string, pending: typeof call | null = call, digestOverride?: Record<string, string>, auto?: string[], flags?: { name: string; sensitive?: boolean }[], allowed = true) {
     const calls: { method: string; path: string; body: unknown }[] = [];
     const session: PlanSessionDeps = {
         ck, orgId: 'o', sessionId: v.sessionId, context, knownLocalId: (_f, id) => id === SPACE.spaceId, resolver: noResolver, flags,
         api: { request: server(status, calls, digestOverride) },
     };
-    return { calls, f: usePlanFlow({ session, pendingCall: async () => pending, now: () => Date.UTC(2026, 10, 23), autoAccept: auto ? () => auto : undefined }) };
+    return { calls, f: usePlanFlow({ session, pendingCall: async () => pending, now: () => Date.UTC(2026, 10, 23), autoAccept: auto ? () => auto : undefined, autoAcceptAllowed: () => allowed }) };
 }
 
 describe('usePlanFlow', () => {
@@ -86,6 +86,13 @@ describe('usePlanFlow', () => {
         await b.f.load();
         expect(b.f.status.value).toBe('proposed');
         expect(b.calls.some(c => c.method === 'POST')).toBe(false);
+    });
+    test('« Toujours accepter » : politique d’org retirée ou illisible, le clic reste demandé', async () => {
+        const { f, calls } = flow('proposed', call, undefined, ALL, undefined, false);
+        await f.load();
+        expect(f.status.value).toBe('proposed');
+        expect(f.autoAccepted.value).toBe(false);
+        expect(calls.some(c => c.method === 'POST')).toBe(false);
     });
     test('sans réglage : jamais d’acceptation automatique', async () => {
         const { f } = flow('proposed');

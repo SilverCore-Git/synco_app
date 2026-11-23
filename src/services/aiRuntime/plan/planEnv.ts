@@ -8,6 +8,8 @@ import type { Org, Category } from '@/types/types';
 import { currentVerifiedMode, type AiRuntimeDeps } from '@/services/aiRuntime';
 import type { LocalIdField } from '../actionPlan';
 import type { ManifestFlags } from '@/services/aiAutoAccept';
+import { fetchMyFeatures } from '@/services/aiFeaturePolicies';
+import type { AutoAcceptPolicy } from './planAutoAccept';
 import type { NameResolver, ResolveKind } from './planLabels';
 
 /** Plafond de la durée d'un plan (12 §7.4) : l'API applique la valeur exacte de l'org, plus courte. */
@@ -51,6 +53,17 @@ export function orgKnownLocalId(org: () => Org | null): (field: LocalIdField, id
 export interface LoadedPlanEnv {
     context: PlanContext;
     flags: ManifestFlags[];
+    /** Politique d'org « Toujours accepter » de l'utilisateur ; `unknown` (lecture échouée) vaut refus. */
+    autoAcceptPolicy: AutoAcceptPolicy;
+}
+
+/** Lit `GET …/feature-policies/me` ; toute erreur donne `unknown` (échec fermé). */
+export async function readAutoAcceptPolicy(api: AiRuntimeDeps['api'], orgId: string): Promise<AutoAcceptPolicy> {
+    try {
+        const f = (await fetchMyFeatures(api, orgId)).find(x => x.feature === 'tool_auto_accept');
+        if (!f) return 'unknown';
+        return f.allowed ? 'allowed' : 'denied';
+    } catch { return 'unknown'; }
 }
 
 interface ToolSpecLike { name: string; sensitive?: boolean }
@@ -61,10 +74,11 @@ export async function loadPlanEnv(
     sessionId: string,
     loadTools: (orgId: string) => Promise<unknown[]>,
 ): Promise<LoadedPlanEnv> {
-    const [tools, verified, registry] = await Promise.all([
+    const [tools, verified, registry, autoAcceptPolicy] = await Promise.all([
         loadTools(orgId),
         currentVerifiedMode(deps, orgId),
         deps.api.request('GET', `/api/orgs/${encodeURIComponent(orgId)}/ai/runtime`),
+        readAutoAcceptPolicy(deps.api, orgId),
     ]);
     const policy = registry.body && typeof registry.body === 'object' ? (registry.body as { policy?: { toolPolicy?: Record<string, unknown> } }).policy : undefined;
     // Sans règle explicite, `create_thread` se confirme (`ask`) : c'est le cas qui passe par le plan.
@@ -79,5 +93,6 @@ export async function loadPlanEnv(
             createThreadAsk,
         },
         flags: list.map(t => ({ name: t.name, sensitive: t.sensitive === true })),
+        autoAcceptPolicy,
     };
 }

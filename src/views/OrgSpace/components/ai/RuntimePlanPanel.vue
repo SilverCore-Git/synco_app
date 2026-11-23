@@ -93,6 +93,7 @@ import PlanCard from '@/services/aiRuntime/plan/PlanCard.vue';
 import PlanGraphWindow from '@/services/aiRuntime/plan/PlanGraphWindow.vue';
 import PlanSummary from '@/services/aiRuntime/plan/PlanSummary.vue';
 import { loadPlanEnv, orgKnownLocalId, orgResolver } from '@/services/aiRuntime/plan/planEnv';
+import { autoAcceptAfterPolicy, policyAllows } from '@/services/aiRuntime/plan/planAutoAccept';
 import { usePlanFlow, type PlanFlow } from '@/services/aiRuntime/plan/planFlow';
 import { dockLabel, gauge } from '@/services/aiRuntime/plan/planProgress';
 import type { PendingPlanCall } from '@/services/aiRuntime/actionPlan';
@@ -153,6 +154,8 @@ async function init(): Promise<void> {
         openConversationKey(deps, props.orgId, props.sessionId),
         loadPlanEnv(deps, props.orgId, props.sessionId, o => loadToolManifest(o)),
     ]);
+    // Droit retiré par l'org : la liste locale est vidée (12 §11) ; lecture échouée : refus, liste conservée.
+    if (env.autoAcceptPolicy === 'denied') useSettingsItem(`ai_auto_accept_${props.orgId}`, '[]').Item.value = '[]';
     flow.value = usePlanFlow({
         session: {
             api: deps.api, ck, orgId: props.orgId, sessionId: props.sessionId, context: env.context, flags: env.flags,
@@ -165,7 +168,8 @@ async function init(): Promise<void> {
         },
         now: () => Date.now(),
         // Réglage du compte « Toujours accepter » de cette org, relu à chaque plan.
-        autoAccept: () => parseAutoAccept(useSettingsItem(`ai_auto_accept_${props.orgId}`, '[]').Item.value),
+        autoAccept: () => autoAcceptAfterPolicy(env.autoAcceptPolicy, parseAutoAccept(useSettingsItem(`ai_auto_accept_${props.orgId}`, '[]').Item.value)),
+        autoAcceptAllowed: () => policyAllows(env.autoAcceptPolicy),
     });
     startRunner(flow.value, deps, ck);
     await flow.value.load();

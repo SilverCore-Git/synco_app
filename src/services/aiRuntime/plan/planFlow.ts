@@ -22,6 +22,8 @@ export interface PlanFlowDeps {
     now(): number;
     /** Liste « Toujours accepter » de l'utilisateur pour cette org (`ai_auto_accept_<orgId>`), déjà lue et filtrée. */
     autoAccept?(): readonly string[];
+    /** Politique d'org `tool_auto_accept` autorisée pour l'utilisateur ; absente ou `false` = jamais d'acceptation sans clic. */
+    autoAcceptAllowed?(): boolean;
 }
 
 const TERMINAL = new Set(['done', 'failed', 'interrupted', 'rejected', 'stopped', 'expired']);
@@ -95,7 +97,7 @@ export function usePlanFlow(deps: PlanFlowDeps) {
     async function maybeAutoAccept(): Promise<void> {
         const l = loaded.value;
         const saved = deps.autoAccept?.() ?? [];
-        if (!l || status.value !== 'proposed' || expired.value || !canAutoAccept(l.model, saved, deps.session.flags)) return;
+        if (!l || status.value !== 'proposed' || expired.value || !canAutoAccept(l.model, saved, deps.session.flags, deps.autoAcceptAllowed?.() === true)) return;
         if (await accept(l.model.actions.map(a => a.n), 'card')) autoAccepted.value = true;
     }
 
