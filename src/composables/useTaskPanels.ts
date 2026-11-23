@@ -1,4 +1,5 @@
-import { markRaw, onUnmounted, reactive, ref } from 'vue';
+import { markRaw, onUnmounted, reactive, ref, watch } from 'vue';
+import { MAX_PANELS, agentPanelSlots, taskPanelSlots } from './dockCapacity';
 import type { Task } from '@/types/types';
 import type { EventPanelState } from './useEventPanels';
 import sfetch from '@/assets/utils/sfetch';
@@ -63,8 +64,8 @@ export interface TaskPanel {
     editTitle: boolean;
 }
 
-/** Au-delà, la plus ancienne entrée est fermée. */
-const MAX_PANELS = 8;
+// Plafond partagé avec les conversations Synco AI du dock (dockCapacity.ts) : au-delà, la plus ancienne entrée est fermée.
+export { MAX_PANELS };
 
 /** Largeur d'un panneau du dock (25rem) et écart entre deux, cf. TaskPanelDock.vue. */
 const PANEL_WIDTH_PX = 400;
@@ -93,6 +94,7 @@ export function wantsAlongside(): boolean {
 }
 
 const panels = ref<TaskPanel[]>([]);
+watch(() => panels.value.length, n => { taskPanelSlots.value = n; }, { immediate: true });
 let draftSeq = 0;
 
 type UpdateListener = (task: Task) => void;
@@ -113,7 +115,7 @@ function fitExpanded() {
  */
 function pushExpanded(panel: TaskPanel, alongside = wantsAlongside()) {
     const kept = alongside ? panels.value : panels.value.filter(p => p.minimized);
-    const next = [...kept, panel].slice(-MAX_PANELS);
+    const next = [...kept, panel].slice(-Math.max(1, MAX_PANELS - agentPanelSlots.value));
     const dropped = panels.value.filter(p => !next.includes(p));
     panels.value = next;
     dropped.forEach(p => {
