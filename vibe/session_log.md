@@ -1467,3 +1467,19 @@ vue-tsc : 0 erreur (sonde volontaire détectée, `.vue` compris). `bun test src/
 - Format de stockage des artefacts (L00g) : seule l'interface `ArtifactSource` existe.
 - Usage par message dans l'historique rejoué : non vérifié (à signaler pour L07c / L08b).
 - Recette manuelle Firefox : comparer aux captures `C3_maquettes/png` (plan, suivi, artefact, états), plan de 100 actions, mobile, fermer puis rouvrir l'onglet.
+
+## 📅 **2026-11-23 - Lot L12 (suite) : conversation runtime branchée, phase d'appareil, « Toujours accepter »**
+
+**Statut** : 🟢 branchement fait ; recette manuelle Firefox à faire.
+
+### **Changements (un commit par étape)**
+1. `OrgAI.vue` consomme `AgentEventSource` (`RuntimeEventSource` sur `RuntimeConnection`, `useRuntimeConversation`, `transcript.ts`) : messages, outils, états de 08, bandeau du lien (hors ligne = lecture seule), messages « en file », confirmation, réponse, annulation (vaut arrêt du plan, PC70), `recordRuntimeUsage` sur les trames `usage`, carte de plan dans le fil (`RuntimePlanPanel.vue`, part `plan`), fenêtre du graphe depuis la carte.
+2. Phase d'appareil (`plan/deviceRunner.ts`, `runnerLoop.ts`, `planApi.ts`, `deviceActions.ts`) : claim, actions prêtes (4 en parallèle), `progress`, `plan_result` scellé (`sealDevicePhaseResult`) déposé, arrêt, cascade PC54, reprise après rechargement (claim expiré, issue `unknown_outcome`), jamais de relance d'une action `executing`. Actions : `category.create`, `thread.create`, `folder.create`, `file.create_text`, en-tête `X-Synco-Plan` (jusqu'à `/api/cdn/transfers/uploads`).
+3. « Toujours accepter » (`planAutoAccept.ts`) : petit plan (PC76) dont toutes les actions sont dans `ai_auto_accept_<orgId>` et admises par la liste blanche ; jamais de sensible.
+4. Passe design : comparaison aux captures C3 plan et états ; textes d'état alignés (plan illisible, plan clos). Le skill est orienté pages ; le style expressif existant est conservé.
+
+### **Reste ouvert**
+- Recette manuelle (Firefox) : flux WebSocket réel, création réelle des 4 types d'action, mobile, fermer/rouvrir l'onglet.
+- Envoi d'image `request_image_upload` vers le runtime non pris en charge (format de `ref` à fixer) ; démarrage d'une nouvelle conversation runtime depuis l'app non traité.
+- Règle 7 : un `folderId` littéral n'est pas vérifié localement (arbre des dossiers non chargé). `maxLifetimeSecs` = plafond 7 j. Sorties d'appareil d'une phase précédente après rechargement : prises de l'API (pas de double contrôle).
+- Dock (L13), usage par message dans l'historique rejoué (à signaler L07c/L08b).

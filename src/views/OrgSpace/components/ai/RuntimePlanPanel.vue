@@ -15,9 +15,12 @@
             <button type="button" class="ml-1 underline font-medium" @click="f.load()">Réessayer</button>
         </p>
 
-        <p v-else-if="f.status === 'invalid'" class="max-w-xl rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-500" role="alert">Plan illisible, refusé sans rien faire.</p>
+        <p v-else-if="f.status === 'invalid'" class="max-w-xl flex items-start gap-2.5 rounded-xl border border-(--text)/10 bg-(--bg2) px-3.5 py-3 text-sm" role="alert">
+            <i class="bi bi-shield-exclamation mt-0.5 text-red-500" />
+            <span><strong>Plan illisible, refusé sans rien faire.</strong> <span class="text-(--text2)">Il ne respecte pas les règles de Synco (action inconnue ou salon introuvable). Synco AI en est informé.</span></span>
+        </p>
 
-        <p v-else-if="f.status === 'ended'" class="max-w-xl text-xs text-(--text2)"><i class="bi bi-diagram-3" /> Plan clos.</p>
+        <p v-else-if="f.status === 'ended'" class="max-w-xl flex items-center gap-2 rounded-xl border border-(--text)/10 bg-(--bg2) px-3.5 py-2.5 text-xs text-(--text2)"><i class="bi bi-diagram-3" /> Plan clos : le bilan est dans la réponse de Synco AI.</p>
 
         <template v-else-if="f.loaded">
             <PlanCard
@@ -41,7 +44,7 @@
                     <div class="h-10 w-10 shrink-0 rounded-xl bg-(--primary)/15 text-(--primary) flex items-center justify-center text-lg"><i class="bi bi-diagram-3" /></div>
                     <div class="min-w-0 flex-1">
                         <h3 class="font-bold leading-snug">{{ f.progress ? dockLabel(f.progress) : 'Plan en cours' }}</h3>
-                        <p class="text-xs text-(--text2)">{{ followHint }}</p>
+                        <p class="text-xs text-(--text2)"><i v-if="f.otherDevice" class="bi bi-laptop text-sky-500" /> {{ followHint }}</p>
                     </div>
                 </div>
                 <div v-if="f.progress" class="mt-3 flex h-1.5 overflow-hidden rounded-full bg-(--text)/10" role="progressbar" :aria-valuenow="f.progress.done" :aria-valuemin="0" :aria-valuemax="f.progress.total">
