@@ -68,7 +68,7 @@
                         <p class="text-sm font-semibold text-(--text)">Laisser Synco AI créer des salons sans me demander</p>
                         <p class="text-xs text-(--text2)">{{ autonomyHint }}</p>
                     </div>
-                    <Switch :model-value="autonomyOn || askingAutonomy" @update:model-value="onAutonomyToggle" :class="autonomyToggleDisabled ? 'pointer-events-none opacity-50' : ''" />
+                    <Switch :model-value="autonomyOn || askingAutonomy" @update:model-value="onAutonomyToggle" :class="autonomyToggleBlocked ? 'pointer-events-none opacity-50' : ''" />
                 </div>
                 <p v-if="featuresFailed" class="text-sm text-(--text2)">Vos droits n'ont pas pu être lus. <button class="text-(--primary) font-semibold" @click="refresh">Réessayer</button></p>
                 <p v-else-if="autoFeature && !autoFeature.allowed" class="text-sm text-(--text2)">Votre organisation ne l'autorise pas.</p>
@@ -114,6 +114,7 @@ import {
 import {
     explainRuntimeError, loadRuntimeAdminView, previousPinnedFingerprint, runtimeDeps, type RuntimeAdminView, type RuntimeProblem,
 } from '@/services/aiRuntimeUi';
+import { autonomyToggleDisabled, redelegateAfterKeyAcceptance } from '@/services/aiAgentRules';
 import { fetchMyFeatures, type MyFeature } from '@/services/aiFeaturePolicies';
 import { autoAcceptLabel, useAutoAcceptTools } from '@/services/aiAutoAccept';
 import { personOf } from '@/views/OrgSpace/views/settings/views/components/policyMembers';
@@ -180,18 +181,20 @@ const run = async (fn: () => Promise<void>, target: 'runtime' | 'autonomy' = 'ru
     }
 };
 
-const delegate = async (confirmFirstSeen: boolean) => {
-    const ok = await run(async () => { delegation.value = await createDelegation(deps, orgId.value, { mode: autonomyOn.value ? 'auto' : 'plan', confirmFirstSeen }); });
+const delegate = async (confirmFirstSeen: boolean, confirmedFingerprint?: string) => {
+    const ok = await run(async () => { delegation.value = await createDelegation(deps, orgId.value, { mode: autonomyOn.value ? 'auto' : 'plan', confirmFirstSeen, confirmedFingerprint }); });
     if (ok) problem.value = null;
     return ok;
 };
 const chooseRuntime = () => { if (!onRuntime.value || problem.value?.action === 'renew_delegation') void delegate(false); };
-const runConfirmFirstSeen = () => { void delegate(true); };
+// Seule l'empreinte AFFICHÉE est confirmée : si le runtime en présente une autre entre-temps, L10 refuse.
+const runConfirmFirstSeen = () => { void delegate(true, problem.value?.fingerprint ?? ''); };
 const runAcceptKey = async () => {
     const fp = problem.value?.fingerprint;
     if (!fp) return;
+    const wasActive = onRuntime.value;
     const ok = await run(async () => { await acceptNewRuntimeKey(deps, orgId.value, fp); });
-    if (ok) await delegate(false);
+    if (ok && redelegateAfterKeyAcceptance(wasActive)) await delegate(false);
     await refresh();
 };
 const chooseDevice = () => { if (onRuntime.value) confirmRevoke.value = true; };
@@ -201,14 +204,16 @@ const runRevoke = async () => {
     if (ok) { toast.show('Délégation révoquée : l\'agent tourne de nouveau sur cet appareil.', 'success'); await refresh(); }
 };
 
-const autonomyToggleDisabled = computed(() => busy.value || featuresFailed.value || !autoFeature.value?.allowed || (!autonomyOn.value && !runtimeChoosable.value));
+const autonomyToggleBlocked = computed(() => autonomyToggleDisabled({
+    busy: busy.value, featuresFailed: featuresFailed.value, allowed: !!autoFeature.value?.allowed, autonomyOn: autonomyOn.value, onRuntime: onRuntime.value,
+}));
 const autonomyHint = computed(() => {
     if (autonomyOn.value) return 'Activé · l\'agent crée les salons sans plan à valider. Les autres actions passent toujours par un plan.';
-    if (!runtimeChoosable.value) return 'Demande un runtime et son autorisation pour le mode runtime.';
+    if (!onRuntime.value) return 'Disponible quand l\'agent tourne sur le runtime de l\'organisation.';
     return 'Désactivé · les autres actions passent toujours par un plan.';
 });
 const onAutonomyToggle = async (value: boolean) => {
-    if (autonomyToggleDisabled.value) return;
+    if (autonomyToggleBlocked.value) return;
     autonomyProblem.value = null;
     if (value) { askingAutonomy.value = true; return; }
     askingAutonomy.value = false;
