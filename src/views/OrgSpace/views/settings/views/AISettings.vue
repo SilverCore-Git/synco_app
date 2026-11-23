@@ -6,6 +6,20 @@
 
             <div class="max-w-5xl mx-auto space-y-12">
 
+                <nav class="flex gap-2 overflow-x-auto hide-scrollbar" role="tablist" aria-label="Sections de Synco AI">
+                    <button v-for="t in tabs" :key="t.id" type="button" role="tab" :aria-selected="tab === t.id"
+                        class="px-5 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors border"
+                        :class="tab === t.id ? 'border-(--primary) bg-(--primary)/10 text-(--primary)' : 'border-(--border-color) text-(--text2) hover:text-(--text)'"
+                        @click="tab = t.id">
+                        <i class="bi mr-2" :class="t.icon"></i>{{ t.label }}
+                    </button>
+                </nav>
+
+                <AIRuntimeSettings v-if="tab === 'runtime'" />
+                <AISecuritySettings v-else-if="tab === 'security'" />
+
+                <template v-else>
+
                 <div class="mb-8">
                     <h3 class="text-2xl font-black text-(--text) mb-2">Configuration de Synco AI</h3>
                     <p class="text-sm text-(--text2)">Activez les fournisseurs que les membres de votre organisation peuvent utiliser avec Synco AI, puis choisissez celui proposé par défaut. Chaque membre peut ensuite en changer pour lui-même.</p>
@@ -81,12 +95,14 @@
 
                 </div>
 
+                </template>
+
             </div>
         </main>
 
         <Transition name="fade-bottom">
             <footer 
-                v-if="hasChanges" 
+                v-if="hasChanges && tab === 'providers'" 
                 class="p-4 bg-(--bg2)/80 backdrop-blur-xl border-t border-(--border-color) flex justify-end gap-3 z-20"
             >
                 <button @click="resetChanges" class="default px-6 py-2.5 rounded-xl text-sm font-medium">Annuler</button>
@@ -131,12 +147,22 @@ import Popup from '@/components/Popup.vue';
 import { openedOrg, organizations } from '@/assets/var';
 import { useToast } from '@/composables/useToast';
 import sfetch from '@/assets/utils/sfetch';
+import AIRuntimeSettings from './AIRuntimeSettings.vue';
+import AISecuritySettings from './AISecuritySettings.vue';
 import AiProviderCard, { type ProviderForm } from './components/AiProviderCard.vue';
 import {
     AI_PROVIDERS, normalizeAiConfig, type AiProviderId, type ReasoningEffort,
 } from '@/services/aiProviders';
 
 const toast = useToast();
+
+type Tab = 'providers' | 'runtime' | 'security';
+const tabs: Array<{ id: Tab; label: string; icon: string }> = [
+    { id: 'providers', label: 'Fournisseurs', icon: 'bi-cpu' },
+    { id: 'runtime', label: 'Runtime', icon: 'bi-hdd-network' },
+    { id: 'security', label: 'Sécurité', icon: 'bi-shield-check' },
+];
+const tab = ref<Tab>('providers');
 
 const saving = ref<boolean>(false);
 const showLearnMorePopup = ref<boolean>(false);
