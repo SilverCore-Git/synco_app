@@ -70,7 +70,7 @@ export async function checkRuntimePin(store: LocalStorePort, localUserId: string
     const record = await readRuntimePin(store, localUserId, orgId);
     if (record === undefined) return { state: 'first_seen', pinnedFpr: null };
     if (record === null) return { state: 'changed', pinnedFpr: null };
-    if (record.runtimeId === null || record.fpr === null) return { state: 'first_seen_after_change', pinnedFpr: null };
+    if (record.runtimeId === null || record.fpr === null) return { state: 'first_seen_after_change', pinnedFpr: record.previous[record.previous.length - 1]?.fpr ?? null };
     if (record.runtimeId === runtimeId && record.fpr === fprHex) return { state: 'match', pinnedFpr: record.fpr };
     return { state: 'changed', pinnedFpr: record.fpr };
 }

@@ -8,7 +8,7 @@ import { AiRuntimeError } from './errors';
 import { acceptNewRuntimeKey, inspectRuntime, verifyRuntimeForDelegation } from './runtimeTrust';
 import { createDelegation, clearDelegationKeys, onRuntimeUnpaired } from './delegation';
 import { previewPairing, pairRuntime } from './pairing';
-import { runtimePinSlot } from './runtimePin';
+import { checkRuntimePin, runtimePinSlot } from './runtimePin';
 import { formatPairingCode, fromB64u } from '@/assets/utils/runtimeCert';
 import { ADMIN, ORG, USER, certify, makeHarness, makePerson, makeRuntime, type Harness } from './testHarness';
 
@@ -82,6 +82,8 @@ describe('première vue et épinglage TOFU (01 §8)', () => {
         const err = (await verifyRuntimeForDelegation(h.deps, ORG).catch((e: unknown) => e)) as AiRuntimeError;
         expect(err.code).toBe('runtime_first_seen');
         expect(err.details.previouslyPinned).toBe(true);
+        const pin = await checkRuntimePin(h.deps.store, USER, ORG, h.rt.runtimeId, h.rt.fprHex);
+        expect(pin).toEqual({ state: 'first_seen_after_change', pinnedFpr: h.rt.fprHex });
     });
 });
 
