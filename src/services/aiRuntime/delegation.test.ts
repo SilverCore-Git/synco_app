@@ -129,6 +129,28 @@ describe('création (03 §7.1) et contenu des charges', () => {
     });
 });
 
+describe('mode du résumé', () => {
+    test('DK en mémoire : le mode servi par l\'API est ignoré, le mandat fait foi', async () => {
+        const h = await prepared();
+        await createDelegation(h.deps, ORG, { mode: 'plan' });
+        h.current!.mode = 'auto';
+        const s = await getDelegationSummary(h.deps, ORG);
+        expect(s).toMatchObject({ mode: 'plan', autonomous: false });
+    });
+
+    test('sans DK : mode relu dans le mandat vérifié, dans les deux sens', async () => {
+        const h = await prepared();
+        await createDelegation(h.deps, ORG, { mode: 'plan' });
+        clearDelegationKeys();
+        h.current!.mode = 'auto';
+        expect(await getDelegationSummary(h.deps, ORG)).toMatchObject({ mode: 'plan', autonomous: false, keysInMemory: false });
+        await enableAutonomousMode(h.deps, ORG, 1);
+        clearDelegationKeys();
+        h.current!.mode = 'plan';
+        expect(await getDelegationSummary(h.deps, ORG)).toMatchObject({ mode: 'auto', autonomous: true });
+    });
+});
+
 describe('cloisonnement des CK', () => {
     test('une conv servie par /missing mais inconnue localement n\'est ni ouverte ni déléguée', async () => {
         const h = await prepared();

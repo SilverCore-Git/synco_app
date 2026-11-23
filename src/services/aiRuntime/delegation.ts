@@ -152,18 +152,32 @@ export interface DelegationSummary {
     keysInMemory: boolean;
 }
 
+/**
+ * Mode du mandat VÉRIFIÉ (signature de l'utilisateur) quand la `DK` n'est pas en mémoire ; jamais le
+ * champ servi. Mandat illisible ou non vérifiable : `plan` (le moins privilégié).
+ */
+async function verifiedModeOf(deps: AiRuntimeDeps, orgId: string, view: DelegationView): Promise<MandateMode> {
+    try {
+        const runtime = await verifyRuntimeForDelegation(deps, orgId, { challenge: false });
+        return (await readVerifiedMandate(deps, orgId, view.delegationId, runtime)).mode;
+    } catch {
+        return 'plan';
+    }
+}
+
 export async function getDelegationSummary(deps: AiRuntimeDeps, orgId: string): Promise<DelegationSummary | null> {
     const userId = requireUserId(deps);
     const view = await fetchCurrentDelegation(deps, orgId);
     if (!view) return null;
     const h = held.get(slot(userId, orgId));
     const mine = h && h.delegationId === view.delegationId ? h : null;
+    const mode = mine ? mine.mode : await verifiedModeOf(deps, orgId, view);
     return {
         delegationId: view.delegationId,
         runtimeId: view.runtimeId,
         status: view.status,
-        mode: view.mode,
-        autonomous: view.mode === 'auto',
+        mode,
+        autonomous: mode === 'auto',
         expiresAt: new Date(view.exp * 1000),
         renewOnOpen: true,
         entryCount: view.entryCount,
