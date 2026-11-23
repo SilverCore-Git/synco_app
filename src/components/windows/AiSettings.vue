@@ -17,6 +17,7 @@
                 >
                     <i :class="[t.icon, 'text-lg']" />
                     {{ t.label }}
+                    <span v-if="t.id === 'agent' && pendingPlans > 0" class="badge" :aria-label="`${pendingPlans} plan${pendingPlans > 1 ? 's' : ''} en attente`">{{ pendingPlans }}</span>
                 </button>
 
             </aside>
@@ -24,54 +25,9 @@
             <main class="flex-1 min-h-0 bg-(--bg) relative overflow-y-auto p-4 sm:p-8 space-y-6">
 
 
-                        <AgentTab v-if="tab === 'agent'" />
+                        <AgentTab v-if="tab === 'agent'" @examine="emit('close')" />
 
-                        <!-- Statistiques -->
-                        <template v-else-if="tab === 'stats'">
-                            <div class="flex items-center justify-between gap-3">
-                                <div class="flex gap-1">
-                                    <button v-for="p in periods" :key="p.id" class="chip" :class="period === p.id ? 'chip-active' : ''" @click="period = p.id">{{ p.label }}</button>
-                                </div>
-                                <button class="text-xs text-red-400 hover:text-red-300 flex items-center gap-1" :disabled="!usageEvents.length" @click="showResetStats = true">
-                                    <i class="bi bi-trash"></i> Réinitialiser
-                                </button>
-                            </div>
-
-                            <p v-if="!events.length" class="text-sm text-(--text2) italic text-center py-10">
-                                Aucune utilisation enregistrée sur cette période.
-                            </p>
-
-                            <template v-else>
-                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                    <div v-for="c in cards" :key="c.label" class="card">
-                                        <p class="text-[10px] uppercase font-bold text-(--text2)">{{ c.label }}</p>
-                                        <p class="text-xl font-semibold mt-1">{{ c.value }}</p>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <p class="section-title">Tokens par jour</p>
-                                    <div class="flex items-end gap-px h-28 card !p-3">
-                                        <div v-for="d in daily" :key="d.day" class="flex-1 min-w-0 h-full flex items-end" :title="`${d.day} : ${d.tokens.toLocaleString('fr-FR')} tokens`">
-                                            <div class="w-full rounded-t bg-(--primary)/70" :style="{ height: d.tokens ? Math.max(4, d.tokens / dailyMax * 100) + '%' : '2px', opacity: d.tokens ? 1 : 0.2 }"></div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div v-for="g in groups" :key="g.title">
-                                    <p class="section-title">{{ g.title }}</p>
-                                    <div class="card !p-0 overflow-hidden">
-                                        <div v-for="row in g.rows" :key="row.key" class="flex items-center gap-3 px-3 py-2 border-b border-(--border-color) last:border-0 text-xs">
-                                            <span class="flex-1 min-w-0 truncate font-medium">{{ g.label(row.key) }}</span>
-                                            <span class="text-(--text2) w-20 text-right">{{ row.requests }} req.</span>
-                                            <span class="text-(--text2) w-24 text-right hidden sm:block">{{ fmt(row.promptTokens) }} → {{ fmt(row.completionTokens) }}</span>
-                                            <span class="w-20 text-right font-semibold">{{ fmt(row.totalTokens) }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <p class="text-[11px] text-(--text2)">Statistiques calculées sur cet appareil uniquement (les conversations sont chiffrées de bout en bout). « entrée → sortie » = tokens du prompt → tokens générés.</p>
-                            </template>
-                        </template>
+                        <StatsTab v-else-if="tab === 'stats'" />
 
                         <!-- Modèles locaux -->
                         <template v-else-if="tab === 'local'">
@@ -181,25 +137,18 @@
         @confirm="confirmClearAll"
         @cancel="showClearAll = false"
     />
-    <ConfirmDelete
-        :show="showResetStats"
-        itemName="les statistiques"
-        itemType="les statistiques"
-        buttonText="Réinitialiser"
-        message="L'historique d'utilisation enregistré sur cet appareil sera effacé. Vos conversations ne sont pas touchées."
-        @confirm="resetUsageStats(); showResetStats = false"
-        @cancel="showResetStats = false"
-    />
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import Window from './Window.vue';
 import AgentTab from './aiSettings/AgentTab.vue';
+import StatsTab from './aiSettings/StatsTab.vue';
+import { openedOrg } from '@/assets/var';
+import { runtimeDeps } from '@/services/aiRuntimeUi';
+import { plansSummary, refreshPlansSummary } from '@/services/aiPlansSummary';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { localLLM, type LLMModel } from '@/services/LocalLLMService';
-import { usageEvents, resetUsageStats, groupUsage, dailyTokens } from '@/services/aiUsageStats';
-import { getProviderMeta } from '@/services/aiProviders';
 import { useToast } from '@/composables/useToast';
 
 const props = defineProps<{ show: boolean }>();
@@ -215,44 +164,12 @@ const tabs: Array<{ id: Tab; label: string; icon: string }> = [
 ];
 const tab = ref<Tab>('agent');
 
-// ---- Statistiques
-const periods = [
-    { id: 7, label: '7 jours' },
-    { id: 30, label: '30 jours' },
-    { id: 0, label: 'Tout' },
-];
-const period = ref(30);
+// Compteur de l'onglet « Agent » : plans à valider (résumé de l'API, sans contenu).
+const pendingPlans = computed(() => plansSummary.value?.toValidate ?? 0);
+watch(() => props.show, (open) => { if (open && openedOrg.value?.id) void refreshPlansSummary(runtimeDeps().api, openedOrg.value.id); });
 
-const events = computed(() => {
-    if (!period.value) return usageEvents.value;
-    const since = Date.now() - period.value * 86400000;
-    return usageEvents.value.filter(e => e.t >= since);
-});
-
-const fmt = (n: number) => n < 1000 ? String(n) : n < 1e6 ? (n / 1000).toFixed(n < 10000 ? 1 : 0).replace(/\.0$/, '') + 'k' : (n / 1e6).toFixed(1) + 'M';
 const sec = (ms: number) => (ms / 1000).toFixed(1) + ' s';
 const fmtBytes = (n: number) => n >= 1024 ** 3 ? (n / 1024 ** 3).toFixed(1) + ' Go' : Math.round(n / 1024 ** 2) + ' Mo';
-
-const cards = computed(() => {
-    const t = groupUsage(events.value, () => 'all')[0];
-    if (!t) return [];
-    return [
-        { label: 'Requêtes', value: fmt(t.requests) },
-        { label: 'Tokens au total', value: fmt(t.totalTokens) },
-        { label: 'Moy. / requête', value: fmt(Math.round(t.totalTokens / t.requests)) },
-        { label: 'Raisonnement', value: fmt(t.reasoningTokens) },
-    ];
-});
-
-const daily = computed(() => dailyTokens(events.value, Math.min(period.value || 30, 30)));
-const dailyMax = computed(() => Math.max(1, ...daily.value.map(d => d.tokens)));
-
-const groups = computed(() => [
-    { title: 'Par fournisseur', rows: groupUsage(events.value, e => e.provider), label: (k: string) => getProviderMeta(k as any)?.name ?? k },
-    { title: 'Par modèle', rows: groupUsage(events.value, e => e.model), label: (k: string) => k },
-]);
-
-const showResetStats = ref(false);
 
 // ---- Modèles locaux
 const disk = ref<Array<{ model: LLMModel; cachedBytes: number }>>([]);
@@ -360,6 +277,7 @@ watch(() => props.show, open => {
 .card { background: var(--bg2); border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 0.75rem 1rem; }
 .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text2); margin-bottom: 0.5rem; }
 .chip { padding: 0.25rem 0.7rem; border-radius: 999px; font-size: 0.75rem; color: var(--text2); border: 1px solid var(--border-color); }
+.badge { min-width: 1.25rem; height: 1.25rem; padding: 0 0.35rem; border-radius: 999px; display: inline-grid; place-items: center; font-size: 0.7rem; font-weight: 800; color: var(--bg); background: var(--primary); margin-left: auto; }
 .chip-active { color: var(--text); border-color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); }
 .badge {
     font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 1px 6px;
