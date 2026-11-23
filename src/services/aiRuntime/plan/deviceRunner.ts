@@ -14,6 +14,7 @@
  */
 import { parseArgRef, type JsonObject, type JsonValue } from '@/assets/utils/aiActionPlan';
 import { fetchPlanView, openAgentResults, sealDevicePhaseResult, type OpenedPlan, type PhaseOutcome, type ServedPlanView } from '../actionPlan';
+import { creationFailureState } from './deviceErrors';
 import { claimPhase, depositPlanResult, isCode, postProgress, type PlanRoute } from './planApi';
 
 export const DEVICE_KINDS = ['category.create', 'thread.create', 'folder.create', 'file.create_text'] as const;
@@ -157,8 +158,13 @@ export async function runDevicePhase(deps: RunnerDeps): Promise<PhaseResult> {
         let output: Record<string, string> | null = null;
         try {
             output = cleanOutput(await deps.execute({ n, kind, args }, `${route.planId}/${n}`));
-        } catch { output = null; }
-        if (!output) { await fail(n, 'failed'); return; }
+        } catch (e) {
+            // `failed` seulement si l'API a refusé (4xx/5xx) ou si rien n'est parti ; sinon l'objet existe peut-être.
+            await fail(n, creationFailureState(e));
+            return;
+        }
+        // Réponse reçue mais inexploitable : l'objet a pu être créé.
+        if (!output) { await fail(n, 'unknown_outcome'); return; }
         if (kind === 'thread.create') createdThread = true;
         for (let attempt = 0; ; attempt++) {
             try {

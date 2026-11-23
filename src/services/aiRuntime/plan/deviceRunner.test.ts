@@ -5,6 +5,7 @@ import { ToolManifest, type JsonObject, type JsonValue, type PlanContext } from 
 import { AiRuntimeError } from '../errors';
 import { openPhaseResult, openPlan, type OpenedPlan, type ServedPlanView } from '../actionPlan';
 import type { ApiPort, HttpMethod } from '../ports';
+import { DeviceHttpError, DeviceNotSentError } from './deviceErrors';
 import { runDevicePhase, type DeviceCall } from './deviceRunner';
 
 interface V { sessionId: string; planId: string; ckHex: string; plan: JsonObject; planValue: string; planExecutors: ('device' | 'agent')[]; toolManifest: JsonValue; serverDigests: { plan: string | null; n: number | null; sha256Hex: string }[] }
@@ -101,7 +102,7 @@ async function opened(): Promise<OpenedPlan> {
 }
 
 interface Setup { server: FakeServer; calls: { call: DeviceCall; header: string }[]; sync: number; run: () => ReturnType<typeof runDevicePhase> }
-async function setup(opts: { fail?: number[]; concurrency?: number; onExecute?: (n: number, s: FakeServer) => void; recordedId?: (n: number) => string } = {}): Promise<Setup> {
+async function setup(opts: { fail?: number[]; failWith?: Error; concurrency?: number; onExecute?: (n: number, s: FakeServer) => void; recordedId?: (n: number) => string } = {}): Promise<Setup> {
     const server = new FakeServer();
     const o = await opened();
     const calls: Setup['calls'] = [];
@@ -111,7 +112,7 @@ async function setup(opts: { fail?: number[]; concurrency?: number; onExecute?: 
         execute: async (call, header) => {
             calls.push({ call, header });
             opts.onExecute?.(call.n, server);
-            if (opts.fail?.includes(call.n)) throw new Error('boom');
+            if (opts.fail?.includes(call.n)) throw opts.failWith ?? new DeviceHttpError(500);
             const id = `obj${call.n}`;
             server.record(call.n, { id, spaceId: 'cm3spaceexample0000000001' });
             return { id: opts.recordedId ? 'local' + call.n : id, spaceId: 'cm3spaceexample0000000001', extra: 'ignoré' };
@@ -147,6 +148,20 @@ describe('phase d’appareil', () => {
         const outcomes = await sent(s);
         expect(outcomes.map(o => [o.n, o.state])).toEqual([[1, 'done'], [2, 'done'], [3, 'failed'], [4, 'skipped']]);
         expect(s.calls.map(c => c.call.n).sort()).toEqual([1, 2, 3]); // 4 jamais appelée
+    });
+
+    test('erreur de transport après l’envoi : issue inconnue, jamais « failed » ; refus HTTP ou rien parti : « failed »', async () => {
+        const net = await setup({ fail: [3], failWith: new TypeError('Failed to fetch') });
+        const r = await net.run();
+        // L'API garde l'action « executing » (le claim expirera) : la phase ne se clôt pas, l'issue locale reste inconnue.
+        expect(r.kind === 'done' ? r.outcomes.find(o => o.n === 3)?.state : null).toBe('unknown_outcome');
+        expect(net.server.state[2]).toBe('executing');
+        const refused = await setup({ fail: [3], failWith: new DeviceHttpError(403) });
+        await refused.run();
+        expect((await sent(refused)).find(o => o.n === 3)?.state).toBe('failed');
+        const local = await setup({ fail: [3], failWith: new DeviceNotSentError('no_org') });
+        await local.run();
+        expect((await sent(local)).find(o => o.n === 3)?.state).toBe('failed');
     });
 
     test('arrêt du plan (PC70) pendant une action : plus aucun démarrage, l’action en cours va à son terme', async () => {

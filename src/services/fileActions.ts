@@ -28,7 +28,8 @@ export const createFolderRequest = async (
 
     if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Impossible de créer le dossier");
+        // `status` : un plan d'action distingue un refus de l'API (4xx/5xx) d'une erreur de transport.
+        throw Object.assign(new Error(data.error || "Impossible de créer le dossier"), { status: res.status });
     }
 
     return await res.json();
