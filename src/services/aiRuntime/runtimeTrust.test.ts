@@ -63,6 +63,24 @@ describe('première vue et épinglage TOFU (01 §8)', () => {
         expect(pinOf(h)).toMatchObject({ fpr: h.rt.fprHex, previous: [{ fpr: old }] });
     });
 
+    test('acceptation : rien n\'est épinglé si la vérification finale échoue', async () => {
+        const h = await makeHarness();
+        await verifyRuntimeForDelegation(h.deps, ORG, { confirmFirstSeen: true });
+        const old = h.rt.fprHex;
+        const fresh = await makeRuntime();
+        Object.assign(h.rt, { kex: fresh.kex, csk: fresh.csk, keys: fresh.keys });
+        const { runtimeFingerprintHex } = await import('@/assets/utils/runtimeCert');
+        h.rt.fprHex = await runtimeFingerprintHex(h.rt.runtimeId, h.rt.keys);
+        h.registry.runtime!.certificate = await certify(h.rt, h.admin, ORG, 2);
+        let reads = 0;
+        h.override = (method, path) => {
+            if (method !== 'GET' || path !== `/api/orgs/${ORG}/ai/runtime` || ++reads < 3) return undefined;
+            return { status: 200, body: { ...h.registry, runtime: { ...h.registry.runtime!, signer: { ...h.registry.runtime!.signer, isAdmin: false } } } };
+        };
+        expect(await code(acceptNewRuntimeKey(h.deps, ORG, formatRuntimeFingerprint(h.rt.fprHex)))).toBe('cert_signer_not_admin');
+        expect(pinOf(h)?.fpr).toBe(old);
+    });
+
     test('épingle illisible : traitée comme une clé changée (échec fermé)', async () => {
         const h = await makeHarness();
         h.store.set(runtimePinSlot(USER, ORG), { v: 9 });
@@ -127,6 +145,14 @@ describe('certificat (01 §6.3) : refus avant toute délégation', () => {
         const other = await makeRuntime();
         h.deps.runtime.identity = async () => ({ status: 200, body: { v: 1, runtimeId: h.rt.runtimeId, url: h.rt.url, keys: { sig: other.keys.sig, kex: JSON.parse(other.keys.kex), csk: JSON.parse(other.keys.csk) }, orgId: ORG } });
         expect(await code(verifyRuntimeForDelegation(h.deps, ORG, { confirmFirstSeen: true }))).toBe('cert_runtime_mismatch');
+    });
+
+    test('fiche publique liée à une autre org, ou à aucune : cert_runtime_mismatch', async () => {
+        for (const orgId of ['cm3orgother00000000000002', null]) {
+            const h = await makeHarness();
+            h.rt.orgId = orgId;
+            expect(await code(verifyRuntimeForDelegation(h.deps, ORG, { confirmFirstSeen: true }))).toBe('cert_runtime_mismatch');
+        }
     });
 
     test('défi échoué (imposteur sans les clés privées) : challenge_failed, ni épingle ni dépôt', async () => {

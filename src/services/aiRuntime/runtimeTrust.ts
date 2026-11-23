@@ -197,6 +197,12 @@ export interface VerifyOptions {
     confirmFirstSeen?: boolean;
     /** Défi de possession (étape 6). `false` seulement pour l'affichage (`inspectRuntime`). */
     challenge?: boolean;
+    /**
+     * Interne à `acceptNewRuntimeKey` : empreinte affichée (formatée) que l'utilisateur accepte. Un
+     * état `changed` n'est alors pas refusé si le runtime présenté a exactement cette empreinte ;
+     * toutes les autres vérifications (certificat, signataire, fiche directe) restent appliquées.
+     */
+    accepting?: string;
 }
 
 /**
@@ -235,12 +241,12 @@ export async function verifyRuntimeForDelegation(deps: AiRuntimeDeps, orgId: str
 
     // 4. Fiche publique en direct : mêmes identifiant et clés.
     const identity = await fetchRuntimeIdentity(deps, cert.url);
-    if (identity.runtimeId !== cert.runtimeId || !sameKeys(identity.keys, cert.keys)) throw new AiRuntimeError('cert_runtime_mismatch');
+    if (identity.runtimeId !== cert.runtimeId || identity.orgId !== orgId || !sameKeys(identity.keys, cert.keys)) throw new AiRuntimeError('cert_runtime_mismatch');
 
     // 5. Épinglage TOFU.
     const fingerprint = formatRuntimeFingerprint(identity.fprHex);
     const pin = await checkRuntimePin(deps.store, userId, orgId, identity.runtimeId, identity.fprHex);
-    if (pin.state === 'changed') {
+    if (pin.state === 'changed' && options.accepting !== fingerprint) {
         throw new AiRuntimeError('runtime_key_changed', { fingerprint, pinnedFingerprint: pin.pinnedFpr ? formatRuntimeFingerprint(pin.pinnedFpr) : undefined, adminId: cert.adminId });
     }
     const firstSeen = pin.state === 'first_seen' || pin.state === 'first_seen_after_change';
@@ -300,19 +306,18 @@ export async function inspectRuntime(deps: AiRuntimeDeps, orgId: string): Promis
  */
 export async function acceptNewRuntimeKey(deps: AiRuntimeDeps, orgId: string, expectedFingerprint: string): Promise<VerifiedRuntime> {
     const userId = requireUserId(deps);
-    let seen: VerifiedRuntime | null = null;
-    try {
-        seen = await verifyRuntimeForDelegation(deps, orgId, { challenge: false });
-    } catch (e) {
-        if (!(e instanceof AiRuntimeError) || e.code !== 'runtime_key_changed') throw e;
-        if (e.details.fingerprint !== expectedFingerprint) throw new AiRuntimeError('runtime_key_changed', e.details);
-    }
-    if (seen && seen.fingerprint !== expectedFingerprint) throw new AiRuntimeError('runtime_key_changed', { fingerprint: seen.fingerprint });
+    // Étapes 1 à 5 complètes (certificat, signataire, fiche directe), l'épingle étant tolérée uniquement
+    // pour l'empreinte que l'utilisateur a vue ; rien n'est écrit tant que tout n'a pas réussi.
+    const seen = await verifyRuntimeForDelegation(deps, orgId, { challenge: false, accepting: expectedFingerprint });
+    if (seen.fingerprint !== expectedFingerprint) throw new AiRuntimeError('runtime_key_changed', { fingerprint: seen.fingerprint });
     const registry = await fetchRuntimeRegistry(deps, orgId);
     if (!registry.runtime) throw new AiRuntimeError('no_runtime');
     const identity = await fetchRuntimeIdentity(deps, registry.runtime.certificate.url);
     if (formatRuntimeFingerprint(identity.fprHex) !== expectedFingerprint) throw new AiRuntimeError('runtime_key_changed');
     await runChallenge(deps, 'delegate', orgId, identity);
+    // Dernière vérification complète, puis seulement l'épinglage.
+    const final = await verifyRuntimeForDelegation(deps, orgId, { challenge: false, accepting: expectedFingerprint });
+    if (final.fprHex !== identity.fprHex || final.runtimeId !== identity.runtimeId) throw new AiRuntimeError('runtime_key_changed', { fingerprint: final.fingerprint });
     await pinRuntime(deps.store, userId, orgId, identity.runtimeId, identity.fprHex, deps.clock.now());
     return verifyRuntimeForDelegation(deps, orgId, { challenge: false });
 }
