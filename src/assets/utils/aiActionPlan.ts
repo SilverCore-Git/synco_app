@@ -323,10 +323,16 @@ export type ActionState = 'pending' | 'executing' | 'done' | 'failed' | 'skipped
 const ACTION_STATES: readonly string[] = ['pending', 'executing', 'done', 'failed', 'skipped', 'unknown_outcome'];
 const isFinal = (s: ActionState): boolean => s !== 'pending' && s !== 'executing';
 
+/** Codes d'abandon d'une action d'agent (12 §8.3, PC74), liste fermée identique à `ABANDON_CODES` de la crate. */
+export const ABANDON_CODES = ['rate_limited', 'refs_inconsistent', 'action_not_accepted', 'autonomy_required', 'key_unavailable'] as const;
+export type AbandonCode = (typeof ABANDON_CODES)[number];
+export const isAbandonCode = (code: unknown): code is AbandonCode => typeof code === 'string' && (ABANDON_CODES as readonly string[]).includes(code);
+
 /**
- * Clair d'un résultat de phase : `{ v: 1, planId, phase, outcomes: [{ n, state, output? }] }` (§9),
- * `n` croissants, chacun action du plan (`graph`) confiée à l'exécutant de l'AAD, état final (ni
- * `pending` ni `executing`), `output` = objet d'identifiants.
+ * Clair d'un résultat de phase : `{ v: 1, planId, phase, outcomes: [{ n, state, output?, code? }] }`
+ * (§9), `n` croissants, chacun action du plan (`graph`) confiée à l'exécutant de l'AAD, état final (ni
+ * `pending` ni `executing`), `output` = objet d'identifiants, `code` = abandon (PC74) : liste fermée,
+ * seulement avec `failed` / `unknown_outcome`, jamais avec `output` (`check_phase_result` de la crate).
  */
 function checkPhaseResult(value: JsonValue, planId: string, phase: number, executor: PlanExecutor, graph: PlanGraph): asserts value is JsonObject {
     const fail = () => new PlanInvalidError('plan_header');
@@ -334,11 +340,12 @@ function checkPhaseResult(value: JsonValue, planId: string, phase: number, execu
     if (value.v !== PLAN_VERSION || value.planId !== planId || value.phase !== phase || !Array.isArray(value.outcomes)) throw fail();
     let last = 0;
     for (const o of value.outcomes) {
-        if (!isObject(o) || Object.keys(o).some(k => !['n', 'state', 'output'].includes(k))) throw fail();
+        if (!isObject(o) || Object.keys(o).some(k => !['n', 'state', 'output', 'code'].includes(k))) throw fail();
         const n = uint(o.n);
         if (n === undefined || n <= last || typeof o.state !== 'string' || !ACTION_STATES.includes(o.state)) throw fail();
         if (graph.actions[n - 1]?.executor !== executor || !isFinal(o.state as ActionState)) throw fail();
         last = n;
+        if (has(o, 'code') && (!isAbandonCode(o.code) || has(o, 'output') || (o.state !== 'failed' && o.state !== 'unknown_outcome'))) throw fail();
         if (has(o, 'output')) {
             const out = o.output;
             if (!isObject(out) || Object.entries(out).some(([k, v]) => !isExportField(k) || typeof v !== 'string' || !isValidId(v))) throw fail();
@@ -813,6 +820,19 @@ export class PlanRun {
         this.states[n - 1] = outcome;
         if (outcome === 'done') return;
         for (const m of this.graph.withDependents([n])) if (this.states[m - 1] === 'pending') this.states[m - 1] = 'skipped';
+    }
+
+    /**
+     * Abandon d'une action d'agent (12 §8.7, PC74) : seule une action d'**agent** `pending` passe à
+     * `failed` ou `unknown_outcome` (dépendantes `skipped`, PC54). `false`, sans rien changer, pour
+     * tout autre état ou exécutant (rejeu idempotent) ; jamais vers `done`. Comme `PlanRun::abandon`.
+     */
+    abandon(n: number, outcome: ActionState): boolean {
+        const a = Number.isSafeInteger(n) && n >= 1 ? this.graph.actions[n - 1] : undefined;
+        if (!a || a.executor !== 'agent' || this.states[n - 1] !== 'pending' || (outcome !== 'failed' && outcome !== 'unknown_outcome')) return false;
+        this.states[n - 1] = outcome;
+        for (const m of this.graph.withDependents([n])) if (this.states[m - 1] === 'pending') this.states[m - 1] = 'skipped';
+        return true;
     }
 
     private close(status: 'stopped' | 'expired'): void {
