@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { ApiPort, HttpMethod } from '@/services/aiRuntime/ports';
 import {
-    addPolicyMembers, fetchMyFeatures, listPolicies, listPolicyMembers, policyAnnouncement, PolicyApiError, setPolicyMode,
+    addPolicyMembers, applyPolicyChange, fetchMyFeatures, listPolicies, listPolicyMembers, policyAnnouncement, PolicyApiError, setPolicyMode,
     type PendingPolicyChange,
 } from './aiFeaturePolicies';
 
@@ -90,9 +90,36 @@ describe("annonce avant l'enregistrement", () => {
         expect(policyAnnouncement(change({ enabledCount: 0 })).text).toBeNull();
     });
 
-    test('de « Tout le monde » à une liste, le nombre est un plafond', () => {
-        const a = policyAnnouncement(change({ nextMode: 'list', enabledCount: 12 }));
-        expect(a.affected).toBeNull();
-        expect(a.text).toContain("Jusqu'à 12 personnes");
+    test('de « Tout le monde » à une liste : liste vide = tous perdent (exact) ; sinon au moins n − choisies', () => {
+        const empty = policyAnnouncement(change({ nextMode: 'list', enabledCount: 12, addedCount: 0 }));
+        expect(empty.affected).toBe(12);
+        expect(empty.text).toContain('12 personnes');
+        const some = policyAnnouncement(change({ nextMode: 'list', enabledCount: 12, addedCount: 5 }));
+        expect(some.affected).toBeNull();
+        expect(some.text).toContain('au moins 7 le perdront');
+        expect(policyAnnouncement(change({ nextMode: 'list', enabledCount: 3, addedCount: 5 })).text).toContain('qui ne sont pas dans la liste');
+    });
+});
+
+describe('enregistrement d\'un changement', () => {
+    const ok = () => ({ status: 200, body: { revoked: 0, removed: 0, added: 0 } });
+    test('tout le monde → liste : UN seul PUT { mode, userIds }, jamais « liste vide » puis ajouts', async () => {
+        const { api, calls } = fakeApi(ok);
+        await applyPolicyChange(api, 'o1', 'autonomous_mode', { currentMode: 'all', nextMode: 'list', added: ['u1', 'u2'], removed: [] });
+        expect(calls).toEqual([{ method: 'PUT', path: '/api/orgs/o1/ai/feature-policies/autonomous_mode', body: { mode: 'list', userIds: ['u1', 'u2'] } }]);
+    });
+    test('plus de 100 personnes d\'un coup vers une liste : refus, rien envoyé', async () => {
+        const { api, calls } = fakeApi(ok);
+        const err = await applyPolicyChange(api, 'o1', 'autonomous_mode', { currentMode: 'none', nextMode: 'list', added: Array.from({ length: 101 }, (_, i) => `u${i}`), removed: [] }).catch(e => e);
+        expect((err as PolicyApiError).code).toBe('list_too_large');
+        expect(calls).toHaveLength(0);
+    });
+    test('déjà en liste : ajouts puis retraits ; autre mode : un PUT { mode }', async () => {
+        const a = fakeApi(ok);
+        await applyPolicyChange(a.api, 'o1', 'runtime_mode', { currentMode: 'list', nextMode: 'list', added: ['u1'], removed: ['u2'] });
+        expect(a.calls.map(c => c.path.split('/').slice(-2).join('/'))).toEqual(['runtime_mode/members', 'members/remove']);
+        const b = fakeApi(ok);
+        await applyPolicyChange(b.api, 'o1', 'runtime_mode', { currentMode: 'list', nextMode: 'none', added: [], removed: [] });
+        expect(b.calls).toEqual([{ method: 'PUT', path: '/api/orgs/o1/ai/feature-policies/runtime_mode', body: { mode: 'none' } }]);
     });
 });

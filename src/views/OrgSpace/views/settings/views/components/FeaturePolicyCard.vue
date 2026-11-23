@@ -52,7 +52,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import type { ApiPort } from '@/services/aiRuntime/ports';
 import {
-    addPolicyMembers, listPolicyMembers, policyAnnouncement, PolicyApiError, removePolicyMembers, setPolicyMode,
+    applyPolicyChange, listPolicyMembers, policyAnnouncement, PolicyApiError,
     type PolicyAnnouncement, type PolicyFeature, type PolicyMember, type PolicyMode, type PolicySummary,
 } from '@/services/aiFeaturePolicies';
 import MemberPicker from './MemberPicker.vue';
@@ -178,6 +178,7 @@ watch([dirty, announcement], () => emit('state', props.summary.feature, dirty.va
 const ERROR_TEXT: Record<string, string> = {
     forbidden: "Vous n'avez pas le droit de modifier cette politique.",
     feature_reserved: "Cette fonctionnalité n'est pas encore disponible.",
+    list_too_large: 'Choisissez au plus 100 personnes pour passer en liste ; vous pourrez en ajouter ensuite.',
     policy_not_list: "La liste n'est modifiable que dans le mode « Personne sauf… ».",
     rate_limited: 'Trop de modifications, réessayez dans un instant.',
 };
@@ -188,13 +189,9 @@ const save = async (): Promise<boolean> => {
     saving.value = true;
     error.value = '';
     try {
-        const f = props.summary.feature;
-        if (draftMode.value !== props.summary.mode) await setPolicyMode(props.api, props.orgId, f, draftMode.value);
-        if (draftMode.value === 'list') {
-            if (added.value.length) await addPolicyMembers(props.api, props.orgId, f, added.value);
-            const gone = [...removed.value];
-            if (gone.length) await removePolicyMembers(props.api, props.orgId, f, gone);
-        }
+        await applyPolicyChange(props.api, props.orgId, props.summary.feature, {
+            currentMode: props.summary.mode, nextMode: draftMode.value, added: added.value, removed: [...removed.value],
+        });
         return true;
     } catch (e) {
         error.value = e instanceof PolicyApiError ? (ERROR_TEXT[e.code] ?? "L'enregistrement a échoué. Rien n'a été perdu : réessayez.") : "L'enregistrement a échoué. Réessayez.";

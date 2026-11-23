@@ -96,9 +96,45 @@ export async function listPolicyMembers(api: ApiPort, orgId: string, feature: Po
     };
 }
 
-export async function setPolicyMode(api: ApiPort, orgId: string, feature: PolicyFeature, mode: PolicyMode): Promise<{ revoked: number }> {
-    const body = await call(api, 'PUT', `${base(orgId)}/${feature}`, { mode });
+/**
+ * `PUT /:feature`. Avec `userIds` (1 à 100, mode `list` seulement), le mode ET la liste s'appliquent en UNE
+ * transaction côté API : le retrait du mode autonome (§11.4) ne touche que les personnes hors de la liste.
+ */
+export async function setPolicyMode(api: ApiPort, orgId: string, feature: PolicyFeature, mode: PolicyMode, userIds?: string[]): Promise<{ revoked: number }> {
+    const payload = mode === 'list' && userIds && userIds.length ? { mode, userIds } : { mode };
+    const body = await call(api, 'PUT', `${base(orgId)}/${feature}`, payload);
     return { revoked: typeof body.revoked === 'number' ? body.revoked : 0 };
+}
+
+export interface PolicyChange {
+    currentMode: PolicyMode;
+    nextMode: PolicyMode;
+    added: string[];
+    removed: string[];
+}
+
+export const LIST_FIRST_WRITE_MAX = 100;
+
+/**
+ * Enregistre un changement de politique. Vers `list` depuis un autre mode : UN `PUT { mode, userIds }`
+ * (jamais « mode `list` vide » puis ajouts, qui retirerait la fonctionnalité à toute l'org entre les deux) ;
+ * plus de 100 personnes d'un coup est refusé (`list_too_large`) plutôt que découpé en deux temps, car la
+ * seconde tranche perdrait la fonctionnalité entre les deux requêtes. Déjà en `list` : ajouts puis retraits.
+ */
+export async function applyPolicyChange(api: ApiPort, orgId: string, feature: PolicyFeature, c: PolicyChange): Promise<void> {
+    if (c.nextMode === 'list' && c.currentMode !== 'list') {
+        if (c.added.length > LIST_FIRST_WRITE_MAX) throw new PolicyApiError('list_too_large', 400);
+        await setPolicyMode(api, orgId, feature, 'list', c.added);
+        return;
+    }
+    if (c.nextMode !== c.currentMode) {
+        await setPolicyMode(api, orgId, feature, c.nextMode);
+        return;
+    }
+    if (c.nextMode === 'list') {
+        if (c.added.length) await addPolicyMembers(api, orgId, feature, c.added);
+        if (c.removed.length) await removePolicyMembers(api, orgId, feature, c.removed);
+    }
 }
 
 /** L'API borne les écritures à 100 identifiants : on découpe. */
@@ -212,9 +248,20 @@ export function policyAnnouncement(c: PendingPolicyChange): PolicyAnnouncement {
                     : `${n} personnes l'utilisent ; elles le perdront immédiatement. ${CONSEQUENCE[c.feature]}`,
             };
         }
+        // Seules les personnes de la liste gardent l'accès (une seule requête côté API) : sans personne choisie,
+        // toutes les `n` le perdent ; sinon au moins `n - choisies` le perdent (on ignore qui, parmi les choisies, l'utilise).
+        if (c.addedCount === 0) {
+            return {
+                affected: n,
+                text: n === 1
+                    ? `Une personne utilise ${label} ; la liste étant vide, elle le perdra immédiatement. ${CONSEQUENCE[c.feature]}`
+                    : `${n} personnes utilisent ${label} ; la liste étant vide, elles le perdront toutes immédiatement. ${CONSEQUENCE[c.feature]}`,
+            };
+        }
+        const least = Math.max(0, n - c.addedCount);
         return {
             affected: null,
-            text: `Jusqu'à ${n} personne${n > 1 ? 's' : ''} utilisent ${label} ; seules celles de la liste le gardent, les autres le perdront immédiatement.`,
+            text: `${n} personne${n > 1 ? 's' : ''} utilisent ${label}. Seules les ${c.addedCount} personne${c.addedCount > 1 ? 's' : ''} de la liste le gardent : ${least > 0 ? `au moins ${least} le perdront` : 'celles qui ne sont pas dans la liste le perdront'} immédiatement. ${CONSEQUENCE[c.feature]}`,
         };
     }
 
