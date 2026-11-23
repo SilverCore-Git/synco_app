@@ -51,6 +51,12 @@ describe('ouverture et décision (12 §5, §12.1, PC69)', () => {
         expect(await code(openPlan({ ck, pendingToolCall: call, view: extra, context: ctx(), knownLocalId: known }))).toBe('plan_digest_mismatch');
     });
 
+    test('plan déjà décidé ou nombre d\'actions servi différent : plan_invalid, aucune décision construite', async () => {
+        for (const patch of [{ status: 'accepted' }, { status: 'rejected' }, { actionCount: 4 }, { actionCount: 6 }]) {
+            expect(await code(openPlan({ ck, pendingToolCall: call, view: view(patch), context: ctx(), knownLocalId: known }))).toBe('plan_invalid');
+        }
+    });
+
     test('graphe servi différent, identifiant local inconnu, autre appel, CK fausse : plan_invalid', async () => {
         const served = view();
         served.actions[4] = { ...served.actions[4]!, executor: 'device' };

@@ -94,12 +94,14 @@ export interface OpenedPlan {
 /**
  * Ouvre et revalide le plan (12 §5) : AAD `sessionId:planId:plan`, règles 1 à 6 (`validatePlan`),
  * règle 7 (annuaire local), règle 8 (graphe servi), puis les empreintes servies (PC69) comparées à
- * celles recalculées. Tout écart : `plan_invalid` (à refuser par `buildRejectDecision`).
+ * celles recalculées. Seul un plan `proposed` (pas encore décidé, 12 §8) dont `actionCount` égale le
+ * nombre d'actions déchiffrées est ouvert. Tout écart : `plan_invalid` (à refuser par `buildRejectDecision`).
  */
 export async function openPlan(input: OpenPlanInput): Promise<OpenedPlan> {
     const { pendingToolCall: call, view } = input;
     const sessionId = input.context.sessionId;
-    if (call.name !== 'propose_actions' || !call.planId || call.planId !== view.planId || call.id !== view.toolCallId || view.sessionId !== sessionId) {
+    if (call.name !== 'propose_actions' || !call.planId || call.planId !== view.planId || call.id !== view.toolCallId || view.sessionId !== sessionId
+        || view.status !== 'proposed') {
         throw new AiRuntimeError('plan_invalid');
     }
     let plan: JsonObject;
@@ -107,6 +109,7 @@ export async function openPlan(input: OpenPlanInput): Promise<OpenedPlan> {
     try {
         plan = await decryptPlan(input.ck, sessionId, call.planId, call.args);
         if (plan.toolCallId !== call.id) throw new PlanInvalidError('plan_header');
+        if (!Array.isArray(plan.actions) || view.actionCount !== plan.actions.length) throw new PlanInvalidError('plan_header');
         graph = validatePlan(plan, input.context);
         checkServedGraph(graph, view.actions);
     } catch (e) {
