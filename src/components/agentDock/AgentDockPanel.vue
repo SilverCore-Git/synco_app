@@ -288,7 +288,8 @@ async function startNew(text: string): Promise<void> {
   busyStarting.value = true;
   startError.value = '';
   try {
-    const result = await startRuntimeConversation(newConversationIo, props.entry.orgId, text.slice(0, 30));
+    // Titre neutre côté serveur : la demande ne part jamais en clair (E2EE). L'aperçu reste local.
+    const result = await startRuntimeConversation(newConversationIo, props.entry.orgId);
     if (!result.ok) {
       startError.value = result.message;
       if (result.sessionId) {
