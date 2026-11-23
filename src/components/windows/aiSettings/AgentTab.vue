@@ -94,6 +94,8 @@
             </div>
         </section>
 
+        <AgentAlertsSections @examine="emit('examine')" />
+
         <ConfirmDelete
             :show="confirmRevoke" :itemName="'la délégation'" itemType="la délégation" title="Révoquer la délégation ?" buttonText="Révoquer" :loading="busy"
             message="Le runtime n'aura plus accès à vos clés. Les conversations qui tournent sur le runtime reviennent en local et l'agent s'arrête quand vous fermez l'app."
@@ -119,6 +121,9 @@ import { fetchMyFeatures, type MyFeature } from '@/services/aiFeaturePolicies';
 import { autoAcceptLabel, useAutoAcceptTools } from '@/services/aiAutoAccept';
 import { personOf } from '@/views/OrgSpace/views/settings/views/components/policyMembers';
 import AutonomyWarning from './AutonomyWarning.vue';
+import AgentAlertsSections from './AgentAlertsSections.vue';
+
+const emit = defineEmits<{ examine: [] }>();
 
 const toast = useToast();
 const deps = runtimeDeps();

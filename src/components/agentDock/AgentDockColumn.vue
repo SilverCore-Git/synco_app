@@ -54,13 +54,14 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, watch } from 'vue';
-import { aiEnabled, isLittleScreen, openedOrg } from '@/assets/var';
+import { aiEnabled, isLittleScreen, openedOrg, user } from '@/assets/var';
 import { chatSessions, fetchSessions } from '@/services/AIService';
 import useNotifications from '@/composables/useNotifications';
 import { useAgentDock, type AgentDockEntry } from '@/composables/useAgentDock';
 import { agentShortcutAction } from '@/services/agentDock/shortcut';
 import { barState } from '@/services/agentDock/barState';
 import { pendingNudges } from '@/services/agentDock/nudges';
+import { nudgeAllowed, readAgentNotifPrefs } from '@/services/aiAgentNotifications';
 import AgentDockPanel from './AgentDockPanel.vue';
 import AgentWindow from './AgentWindow.vue';
 
@@ -85,12 +86,15 @@ const POLL_MS = 30_000;
 let timer: ReturnType<typeof setInterval> | null = null;
 const poll = () => { if (aiEnabled.value && orgId.value && document.visibilityState === 'visible') void fetchSessions(); };
 
+/** Préférences « Agent IA » (PC25) : un cas désactivé n'allume pas de bulle. */
+const agentPrefs = computed(() => readAgentNotifPrefs(user.value?.notificationPreferences));
+
 /** key de bulle -> id de la notification affichée. */
 const shown = new Map<string, number>();
 
 function syncNudges(): void {
   const wanted = aiEnabled.value
-    ? pendingNudges(chatSessions.value, dock.openIds.value, dock.dismissedNudges.value)
+    ? pendingNudges(chatSessions.value, dock.openIds.value, dock.dismissedNudges.value, w => nudgeAllowed(agentPrefs.value, w))
     : [];
   const wantedKeys = new Set(wanted.map(n => n.key));
   // Bulle fermée à la croix : la même attente ne revient pas. Bulle devenue sans objet : retirée sans bruit.
@@ -104,7 +108,7 @@ function syncNudges(): void {
     shown.set(n.key, notify('notif:agent', { sessionId: n.sessionId, title: n.title, label: n.label, key: n.key }, -1));
   }
 }
-watch([chatSessions, dock.openIds, dock.dismissedNudges, notifications, aiEnabled], syncNudges, { deep: true });
+watch([chatSessions, dock.openIds, dock.dismissedNudges, notifications, aiEnabled, agentPrefs], syncNudges, { deep: true });
 
 // ── Raccourci Ctrl/Cmd+J : ouvre ou ferme ; jamais d'ouverture sans ce geste ──
 function onKeydown(e: KeyboardEvent): void {

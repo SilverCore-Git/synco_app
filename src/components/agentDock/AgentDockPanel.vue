@@ -153,7 +153,7 @@ import { connectRuntimeConversation } from '@/services/aiRuntime/conversation/co
 import { linkBanner, isBusyStatus } from '@/services/aiRuntime/conversation/status';
 import type { TranscriptMessage } from '@/services/aiRuntime/conversation/transcript';
 import { runtimeDeps } from '@/services/aiRuntimeUi';
-import { recordRuntimeUsage } from '@/services/aiUsageStats';
+import { recordRuntimeTool, recordRuntimeUsage } from '@/services/aiUsageStats';
 import { composeFirstMessage, contextChip, contextSuggestions, GENERIC_SUGGESTIONS, splitContext } from '@/services/agentDock/context';
 import { startRuntimeConversation } from '@/services/agentDock/newConversation';
 import { newConversationIo } from '@/services/agentDock/newConversationIo';
@@ -196,6 +196,7 @@ const runtime = useRuntimeConversation({
   messages: messages as unknown as Ref<TranscriptMessage[]>,
   connect: (orgId, sessionId, hooks) => connectRuntimeConversation(runtimeDeps(), orgId, sessionId, hooks),
   recordUsage: (sessionId, frame) => { recordRuntimeUsage(sessionId, frame); },
+  recordTool: (sessionId, toolCallId, name) => { recordRuntimeTool(sessionId, toolCallId, name); },
   reloadHistory: async (sessionId) => { await loadSession(sessionId); },
   fromSnapshot: (raw) => convertStoredMessagesToChatMessages(raw),
   afterEvent: () => { void scrollToBottom(); },

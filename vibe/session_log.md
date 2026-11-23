@@ -1530,3 +1530,26 @@ vue-tsc 0 erreur (détection vérifiée par une erreur volontaire) ; `bun test s
 ### **Reste ouvert**
 - Recette manuelle Firefox, comparée à `C3_maquettes/png` : dock, agrandi, demander, mobile, états.
 - Composeur du dock : pas de choix de modèle ni de bouton « Contexte » ; nombre d'actions sur la barre et la bulle ; sélection + Ctrl+J avec contexte ; entrée « salon » et module Documents hors fichiers ; états « plan exécuté ailleurs » et clé changée seulement via le fil.
+
+---
+
+## 📅 **2026-11-23 - Lot L13b : réglages de l'agent, statistiques en tokens, notifications, plans en attente**
+
+**Statut** : 🟢 code, tests et vue-tsc faits ; recette visuelle Firefox (captures `reglages` et `stats` de C3) à faire.
+
+### **Changements**
+1. `aiUsageStats.ts` : `recordRuntimeTool` (appel d'outil, 0 token, dédoublonné), filtres période et source, `summarizeUsage`, `topConversations`, `toolUsage` ; ancien format lu comme « appareil ». Aucun montant (PC79). `useRuntimeConversation` : dépendance optionnelle `recordTool`.
+2. `aiPlansSummary.ts` (route `GET …/ai/plans/summary`), `aiAgentNotifications.ts` (préférences `notificationPreferences.agent`, PC25) ; les bulles du dock (`pendingNudges`) respectent la préférence.
+3. `aiSettings/AgentAlertsSections.vue` (sections 4 à 6 : notifications avec aperçu sans contenu, plans en attente avec « Examiner » qui ouvre le dock, Mes données), `StatsTab.vue` (remplace l'onglet de `AiSettings.vue`), compteur sur l'onglet « Agent ».
+
+### **Choix**
+- « Mes données » : l'onglet de `UserSettings.vue` n'existe pas encore ; bouton désactivé avec mention (`MY_DATA_TAB_AVAILABLE`).
+- Statistiques des plans : seulement « à valider » et « en cours » (ce que la route renvoie) ; pas de terminés/échecs.
+- Appels d'outils comptés à la réception du résultat, uniquement pour les conversations runtime vues sur cet appareil.
+- Design : style existant de l'app conservé (le skill design-taste-frontend a été chargé ; pas de refonte visuelle, décision mémorisée).
+
+### **Vérifications**
+vue-tsc 0 erreur ; `bun test src/services` : 313 réussis, 0 échec.
+
+### **Reste ouvert**
+Recette Firefox ; section masquée tant que l'API PC25 n'est pas déployée (non gérée : un PATCH refusé affiche une erreur) ; nombre d'actions « modifiantes » absent des chiffres.
