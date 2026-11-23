@@ -7,10 +7,9 @@ import {
     type AiProviderId, type AiUserPrefs, type ReasoningEffort, type SessionRegime,
 } from './aiProviders';
 import sfetch from '@/assets/utils/sfetch';
-import { keycloak } from '@/assets/keycloak';
 import { encryptForPeer, decryptFromPeer, privateKey, decryptAiField } from '@/assets/utils/crypto';
 import { ensureAiSessionKey, AiSessionKeyUnavailableError } from './AiSessionKeyService';
-import { assertAllowedGateway } from './aiGatewayPolicy';
+import { assertAllowedGateway, parseGatewayUrl } from './aiGatewayPolicy';
 import { ToolCallStreamParser, type ParsedEvent } from './agent/toolCallParser';
 import { startClientAgentTurn, resumeClientAgentTurn, type ClientAgentDeps, type ClientDecision, type PendingClientTool } from './agent/clientAgent';
 
@@ -432,17 +431,24 @@ export async function listGatewayModels(gatewayUrl: string, orgId: string): Prom
     if (!userId) throw new Error('Utilisateur non identifié.');
     const base = await assertAllowedGateway(gatewayUrl, userId, orgId);
 
-    if (keycloak.authenticated) {
-        await keycloak.updateToken(60).catch(() => {});
+    // Ticket `sgt1` court de l'API (comme `chatGateway`) : jamais le jeton Keycloak vers la passerelle.
+    const ticketRes = await sfetch(`/api/orgs/${orgId}/ai/gateway-ticket`, { method: 'POST' });
+    if (!ticketRes.ok) {
+        const body = await ticketRes.json().catch(() => ({} as { error?: string }));
+        throw new Error(body.error === 'gateway_not_configured'
+            ? "Enregistrez d'abord l'URL de la passerelle pour lister ses modèles."
+            : `Impossible d'obtenir l'accès à la passerelle (${ticketRes.status}).`);
     }
-    const url = `${base}/models`;
+    const { ticket, url: configuredUrl } = await ticketRes.json() as { ticket: string; url: string };
+    // Le ticket n'est présenté qu'à l'origine enregistrée par l'org, jamais à une URL en cours de saisie.
+    if (parseGatewayUrl(configuredUrl).origin !== parseGatewayUrl(gatewayUrl).origin) {
+        throw new Error("Enregistrez d'abord l'URL de la passerelle pour lister ses modèles.");
+    }
 
-    const res = await fetch(url, {
-        headers: keycloak.token ? { Authorization: `Bearer ${keycloak.token}` } : {},
-    });
+    const res = await fetch(`${base}/models`, { headers: { Authorization: `Bearer ${ticket}` } });
 
     if (!res.ok) {
-        const body = await res.json().catch(() => ({} as any));
+        const body = await res.json().catch(() => ({} as { error?: string }));
         throw new Error(body.error || `Erreur ${res.status} lors de la récupération des modèles.`);
     }
 
