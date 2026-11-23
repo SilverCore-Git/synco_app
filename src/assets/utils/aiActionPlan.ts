@@ -127,6 +127,15 @@ async function sealField(ck: CryptoKey | Uint8Array, aad: string, plaintext: str
 }
 
 /**
+ * Écriture d'un champ `gcm1:` (03 §6.3), AAD `sessionId:messageId:fieldName` ; identifiants conformes
+ * à 00 §3.2 (`invalid_input` sinon). Même format que `encryptAiField`, base64 par blocs (gros champs).
+ */
+export async function encryptAiFieldStrict(ck: CryptoKey | Uint8Array, sessionId: string, messageId: string, fieldName: string, plaintext: string): Promise<string> {
+    assertIds(sessionId, messageId);
+    return sealField(ck, `${sessionId}:${messageId}:${fieldName}`, plaintext);
+}
+
+/**
  * Lecture STRICTE d'un champ `gcm1:` avec les codes de la crate (`session::decrypt_field`) :
  * `invalid_input` (identifiant non conforme, avant l'AAD), `field_unknown_version`,
  * `field_invalid_base64`, `field_invalid_length`, `field_authentication_failed`,

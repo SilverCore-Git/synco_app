@@ -269,6 +269,14 @@ export async function registerRuntimeConversation(deps: AiRuntimeDeps, orgId: st
     await deps.store.set(convSlot(userId, orgId), { v: 1, ids: [...ids, sessionId].slice(-MAX_KNOWN_CONVERSATIONS) });
 }
 
+/** Retire une conversation du registre (bascule échouée avant tout dépôt) ; sans effet si absente. */
+export async function forgetRuntimeConversation(deps: AiRuntimeDeps, orgId: string, sessionId: string): Promise<void> {
+    const userId = requireUserId(deps);
+    const ids = await readKnownConversations(deps, userId, orgId);
+    if (!ids.includes(sessionId)) return;
+    await deps.store.set(convSlot(userId, orgId), { v: 1, ids: ids.filter(x => x !== sessionId) });
+}
+
 export async function isKnownRuntimeConversation(deps: AiRuntimeDeps, orgId: string, sessionId: string): Promise<boolean> {
     return (await readKnownConversations(deps, requireUserId(deps), orgId)).includes(sessionId);
 }
@@ -318,6 +326,35 @@ async function sealEntries(deps: AiRuntimeDeps, orgId: string, h: HeldDelegation
         }
     }
     return { entries, skipped };
+}
+
+/**
+ * Entrée `conv` de la bascule (04 §5, `convEntry`) : la `CK` scellée sous la `DK` en mémoire de la
+ * délégation `delegationId`. Échec fermé : `delegation_unusable` si cette délégation n'est pas celle
+ * dont la `DK` est en mémoire, `delegation_entry_forbidden` si la conversation n'est pas enregistrée
+ * (PC81, `registerRuntimeConversation` d'abord) ou si son identifiant n'est pas conforme.
+ * L'entrée n'est pas déposée ici : elle part dans le corps de la bascule, appliquée tout ou rien.
+ */
+export async function sealConversationEntry(
+    deps: AiRuntimeDeps,
+    orgId: string,
+    delegationId: string,
+    sessionId: string,
+    ck: Uint8Array,
+): Promise<{ kind: 'conv'; ref: string; version: 1; ciphertext: string }> {
+    const userId = requireUserId(deps);
+    const h = held.get(slot(userId, orgId));
+    if (!h || h.delegationId !== delegationId) throw new AiRuntimeError('delegation_unusable');
+    const ref: KeyRef = { kind: 'conv', ref: sessionId, version: 1 };
+    const known = new Set(await readKnownConversations(deps, userId, orgId));
+    if (!(await isDelegable(deps, orgId, known, ref))) throw new AiRuntimeError('delegation_entry_forbidden');
+    if (ck.length !== 32) throw new AiRuntimeError('delegation_invalid');
+    try {
+        const ciphertext = await sealDelegationEntry(h.dk, h.ctx, ref, ck);
+        return { kind: 'conv', ref: sessionId, version: 1, ciphertext };
+    } catch (e) {
+        throw fromFormatError(e, 'delegation_invalid');
+    }
 }
 
 /** Dépôt par lots de 500 au plus, au rythme de l'API (3 requêtes / 15 s). */
