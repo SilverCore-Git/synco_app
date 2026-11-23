@@ -31,11 +31,11 @@ export type LoadedPlan =
     | { state: 'ready'; opened: OpenedPlan; view: ServedPlanView; model: PlanModel }
     | { state: 'invalid'; code: 'plan_invalid' | 'plan_digest_mismatch' };
 
-export async function loadPlan(deps: PlanSessionDeps, call: PendingPlanCall): Promise<LoadedPlan> {
+export async function loadPlan(deps: PlanSessionDeps, call: PendingPlanCall, statuses?: readonly string[]): Promise<LoadedPlan> {
     if (!call.planId) return { state: 'invalid', code: 'plan_invalid' };
     const view = await fetchPlanView(deps.api, deps.orgId, deps.sessionId, call.planId);
     try {
-        const opened = await openPlan({ ck: deps.ck, pendingToolCall: call, view, context: deps.context, knownLocalId: deps.knownLocalId });
+        const opened = await openPlan({ ck: deps.ck, pendingToolCall: call, view, context: deps.context, knownLocalId: deps.knownLocalId, statuses });
         return { state: 'ready', opened, view, model: buildPlanModel(opened, deps.resolver, deps.flags) };
     } catch (e) {
         if (e instanceof AiRuntimeError && (e.code === 'plan_invalid' || e.code === 'plan_digest_mismatch')) return { state: 'invalid', code: e.code };

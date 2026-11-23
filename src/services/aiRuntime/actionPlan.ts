@@ -25,9 +25,21 @@ import { RuntimeFormatError } from '@/assets/utils/runtimeCert';
 import { AiRuntimeError, apiError } from './errors';
 import type { ApiPort } from './ports';
 
+const ACTION_STATE_NAMES = ['pending', 'executing', 'done', 'failed', 'skipped', 'unknown_outcome'] as const;
 const isObj = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x);
 
-/** Vue servie par l'API (`GET …/plans/:planId`), réduite à ce que la crypto contrôle. */
+/** Action servie par l'API : graphe, plus l'état d'exécution quand l'API le donne (12 §12.1). */
+export interface ServedAction extends GraphAction {
+    state?: ActionState;
+    /** Prête (12 §8.1), calculée par l'API. */
+    ready?: boolean;
+    /** Sortie enregistrée par l'API (`null` après la clôture du plan, PC56). */
+    output?: Record<string, string> | null;
+}
+
+export interface ServedClaim { deviceId: string; phase: number; expiresAt: number }
+
+/** Vue servie par l'API (`GET …/plans/:planId`), réduite à ce que la crypto et l'exécution contrôlent. */
 export interface ServedPlanView {
     planId: string;
     sessionId: string;
@@ -36,8 +48,13 @@ export interface ServedPlanView {
     actionCount: number;
     /** `{ "<n>": "<hex>" }` déposé par le runtime (PC69). */
     serverDigests: Record<string, string>;
-    actions: GraphAction[];
+    actions: ServedAction[];
     agentResults: { phase: number; value: string }[];
+    /** Phases d'appareil / d'agent closes. */
+    devicePhases?: number;
+    agentPhases?: number;
+    expiresAt?: number;
+    claim?: ServedClaim | null;
 }
 
 export function readPlanView(body: unknown): ServedPlanView {
@@ -50,16 +67,35 @@ export function readPlanView(body: unknown): ServedPlanView {
         if (typeof v !== 'string' || !/^[0-9a-f]{64}$/.test(v)) throw bad();
         digests[k] = v;
     }
-    const actions: GraphAction[] = b.actions.map(a => {
+    const actions: ServedAction[] = b.actions.map(a => {
         if (!isObj(a) || typeof a.n !== 'number' || (a.executor !== 'device' && a.executor !== 'agent') || !Array.isArray(a.after)
             || !a.after.every((m): m is number => typeof m === 'number')) throw bad();
-        return { n: a.n, executor: a.executor, after: a.after };
+        const out: ServedAction = { n: a.n, executor: a.executor, after: a.after };
+        if (typeof a.state === 'string' && (ACTION_STATE_NAMES as readonly string[]).includes(a.state)) out.state = a.state as ActionState;
+        if (typeof a.ready === 'boolean') out.ready = a.ready;
+        if (a.output === null) out.output = null;
+        else if (isObj(a.output)) {
+            const o: Record<string, string> = {};
+            for (const [k, v] of Object.entries(a.output)) if (typeof v === 'string') o[k] = v;
+            out.output = o;
+        }
+        return out;
     });
     const agentResults = (Array.isArray(b.agentResults) ? b.agentResults : []).map(r => {
         if (!isObj(r) || typeof r.phase !== 'number' || typeof r.value !== 'string') throw bad();
         return { phase: r.phase, value: r.value };
     });
-    return { planId: b.planId, sessionId: b.sessionId, toolCallId: b.toolCallId, status: b.status, actionCount: b.actionCount, serverDigests: digests, actions, agentResults };
+    const view: ServedPlanView = { planId: b.planId, sessionId: b.sessionId, toolCallId: b.toolCallId, status: b.status, actionCount: b.actionCount, serverDigests: digests, actions, agentResults };
+    if (typeof b.devicePhases === 'number') view.devicePhases = b.devicePhases;
+    if (typeof b.agentPhases === 'number') view.agentPhases = b.agentPhases;
+    const exp = typeof b.expiresAt === 'string' ? Date.parse(b.expiresAt) : NaN;
+    if (Number.isFinite(exp)) view.expiresAt = exp;
+    if (b.claim === null) view.claim = null;
+    else if (isObj(b.claim) && typeof b.claim.deviceId === 'string' && typeof b.claim.phase === 'number') {
+        const until = typeof b.claim.expiresAt === 'string' ? Date.parse(b.claim.expiresAt) : NaN;
+        view.claim = { deviceId: b.claim.deviceId, phase: b.claim.phase, expiresAt: Number.isFinite(until) ? until : 0 };
+    }
+    return view;
 }
 
 /** `pendingToolCall` d'une conversation (12 §3.4). */
@@ -82,6 +118,8 @@ export interface OpenPlanInput {
     context: PlanContext;
     /** Règle 7 : l'identifiant est-il connu de l'annuaire local ? */
     knownLocalId: (field: LocalIdField, id: string) => boolean;
+    /** Statuts de plan admis à l'ouverture : `proposed` seul pour une décision, plus `accepted`/`executing` pour le suivi et l'exécution. */
+    statuses?: readonly string[];
 }
 
 export interface OpenedPlan {
@@ -101,7 +139,7 @@ export async function openPlan(input: OpenPlanInput): Promise<OpenedPlan> {
     const { pendingToolCall: call, view } = input;
     const sessionId = input.context.sessionId;
     if (call.name !== 'propose_actions' || !call.planId || call.planId !== view.planId || call.id !== view.toolCallId || view.sessionId !== sessionId
-        || view.status !== 'proposed') {
+        || !(input.statuses ?? ['proposed']).includes(view.status)) {
         throw new AiRuntimeError('plan_invalid');
     }
     let plan: JsonObject;

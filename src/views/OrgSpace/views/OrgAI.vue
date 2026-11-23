@@ -13,6 +13,15 @@
 
         <div class="flex items-center gap-3">
           <span
+            v-if="isRuntime"
+            class="text-[11px] font-medium px-2 py-1 rounded-full flex items-center gap-1.5"
+            :class="runtime.status.value === 'failed' ? 'text-red-500 bg-red-500/10' : 'text-(--text2) bg-(--text)/5'"
+            :title="runtime.error.value || 'État de la conversation sur le runtime'"
+          >
+            <i v-if="uiBusy" class="bi bi-arrow-repeat animate-spin"></i>
+            {{ statusLabel(runtime.status.value) }}
+          </span>
+          <span
             v-if="cumulativeUsage.totalTokens > 0"
             class="text-[11px] font-medium text-(--text2) bg-(--text)/5 px-2 py-1 rounded-full"
             title="Total de tokens utilisés dans cette conversation"
@@ -30,6 +39,17 @@
       >
         <i class="bi bi-unlock-fill" />
         <span>Conversation non chiffrée de bout en bout : le serveur peut en lire le contenu.</span>
+      </div>
+
+      <!-- Conversation runtime : état du lien (reprise, runtime hors ligne = lecture seule) -->
+      <div
+        v-if="runtimeBanner"
+        class="px-5 py-2 flex items-center gap-2 text-xs border-b shrink-0"
+        :class="runtimeBanner.tone === 'info' ? 'text-(--text2) bg-(--text)/5 border-(--border-color)' : runtimeBanner.tone === 'warning' ? 'text-amber-500 bg-amber-500/10 border-amber-500/20' : 'text-red-500 bg-red-500/10 border-red-500/20'"
+        role="status"
+      >
+        <i class="bi" :class="runtimeBanner.tone === 'info' ? 'bi-arrow-repeat' : 'bi-cloud-slash'" />
+        <span>{{ runtimeBanner.text }}</span>
       </div>
 
       <!-- Chat Container -->
@@ -76,15 +96,27 @@
             <div @click="handleLinks" class="prose prose-invert max-w-none prose-sm">
               <MarkdownRender :content="cleanAiContent(msg.content)" mode="chat" />
             </div>
+            <p v-if="msg.queued" class="mt-1 text-[11px] text-(--text2)"><i class="bi bi-hourglass-split"></i> En file : traité dès que Synco AI a fini.</p>
           </div>
 
           <!-- Assistant turn: new agent loop (OpenAI/Mistral/Gemini) — structured parts, Claude-like -->
           <div v-else-if="msg.viaAgentLoop" class="w-full text-sm leading-relaxed text-(--text)">
             <AgentTurn
               :parts="msg.parts || []"
-              :is-generating="isGenerating && index === messages.length - 1"
+              :is-generating="uiBusy && index === messages.length - 1"
               @open-task="openAiTask"
-            />
+            >
+              <template #plan="{ toolCallId }">
+                <RuntimePlanPanel
+                  v-if="openedOrg && activeSessionId"
+                  :org-id="openedOrg.id"
+                  :session-id="activeSessionId"
+                  :tool-call-id="toolCallId"
+                  :offline="runtimeReadOnly"
+                  :queued-message="lastQueuedText"
+                />
+              </template>
+            </AgentTurn>
             <p v-if="msg.usage" class="text-[11px] text-(--text2)/70 mt-1">
               {{ formatTokenCount(msg.usage.totalTokens) }} tokens<template v-if="msg.usage.reasoningTokens"> (dont {{ formatTokenCount(msg.usage.reasoningTokens) }} de raisonnement)</template>
             </p>
@@ -293,20 +325,21 @@
           </div>
         </Transition>
 
-        <AiComposerControls :busy="isGenerating" />
+        <AiComposerControls :busy="uiBusy" />
 
         <form @submit.prevent="sendMessage" data-br-obstacle
           class="relative w-full max-w-5xl mx-auto flex items-end gap-3 border border-(--text)/10 rounded-xl px-4 py-2 transition-all shadow-2xl"
-          :class="(!canType || isGenerating) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'">
+          :class="(!canType || composerLocked) ? 'bg-black/50 opacity-50 cursor-not-allowed' : 'bg-(--bg) focus-within:border-(--primary)/50'">
 
           <ThreadTextarea ref="chatInputRef" v-model="inputMsg" placeholder="Demandez-moi n'importe quoi..."
-            :disabled="!canType || isGenerating" @send="sendMessage" />
+            :disabled="!canType || composerLocked" @send="sendMessage" />
 
-          <button type="button" @click="isGenerating ? stopGeneration() : sendMessage()"
+          <button type="button" @click="primaryAction()"
             class="shrink-0 mb-1 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
-            :class="isGenerating ? 'text-red-500 hover:text-red-400' : 'text-(--primary) hover:brightness-110'"
-            :disabled="!canType || (!inputMsg.trim() && !isGenerating)">
-            <i :class="isGenerating ? 'bi-stop-fill text-xl' : 'bi-send-fill text-xl'"></i>
+            :class="showStop ? 'text-red-500 hover:text-red-400' : 'text-(--primary) hover:brightness-110'"
+            :disabled="!canType || runtimeReadOnly || (!inputMsg.trim() && !showStop)"
+            :title="showStop ? 'Annuler' : 'Envoyer'">
+            <i :class="showStop ? 'bi-stop-fill text-xl' : 'bi-send-fill text-xl'"></i>
           </button>
 
         </form>
@@ -318,9 +351,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch, toRaw, type Ref } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch, toRaw, type Ref } from 'vue';
 import { localLLM } from '@/services/LocalLLMService';
-import { aiService, aiIsLocal, aiIsClientDriven, aiSessionNotEncrypted, aiPrefsReady, aiSessionMessages, syncSession, fetchSessions, activeSessionId, clientAgentTurn, resumeClientAgent } from '@/services/AIService';
+import { aiService, aiIsLocal, aiIsClientDriven, aiSessionNotEncrypted, aiPrefsReady, aiSessionMessages, syncSession, fetchSessions, activeSessionId, clientAgentTurn, resumeClientAgent, activeSessionIsRuntime, loadSession, convertStoredMessagesToChatMessages } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import { useTaskPanels } from '@/composables/useTaskPanels';
@@ -329,7 +362,13 @@ import AgentTurn from '../components/ai/AgentTurn.vue';
 import PendingActionBar from '../components/ai/PendingActionBar.vue';
 import LocalModelPanel from '../components/ai/LocalModelPanel.vue';
 import AiComposerControls from '../components/ai/AiComposerControls.vue';
-import { recordUsage } from '@/services/aiUsageStats';
+import { recordUsage, recordRuntimeUsage } from '@/services/aiUsageStats';
+import RuntimePlanPanel from '../components/ai/RuntimePlanPanel.vue';
+import { useRuntimeConversation } from '@/services/aiRuntime/conversation/useRuntimeConversation';
+import { connectRuntimeConversation } from '@/services/aiRuntime/conversation/connect';
+import { linkBanner, statusLabel, isBusyStatus } from '@/services/aiRuntime/conversation/status';
+import type { TranscriptMessage } from '@/services/aiRuntime/conversation/transcript';
+import { runtimeDeps } from '@/services/aiRuntimeUi';
 import MarkdownRender from './MarkdownRender.vue';
 import type { TurnPart, ToolStep } from '../components/ai/agentTypes';
 import UsersBarToggle from '@/views/OrgSpace/components/layouts/UsersBarToggle.vue';
@@ -404,6 +443,8 @@ interface ChatMessage {
     result?: any;
   };
   tool_data?: any;
+  /** Message déposé pendant que la conversation runtime travaille : traité dès qu'elle a fini. */
+  queued?: boolean;
   /**
    * true si ce message vient de la nouvelle boucle d'agent serveur (providers OpenAI/Mistral/
    * Gemini) plutôt que de l'ancien parseur regex — détermine quel gestionnaire de tool utiliser
@@ -448,6 +489,34 @@ watch(activeSessionId, async () => {
 });
 const messages = aiSessionMessages as unknown as Ref<ChatMessage[]>;
 
+// --- Conversation sur le runtime (L12) : l'app n'est qu'une fenêtre, la source d'évènements est le WebSocket ---
+const isRuntime = computed(() => activeSessionIsRuntime.value && !!activeSessionId.value);
+const runtime = useRuntimeConversation({
+  messages: messages as unknown as Ref<TranscriptMessage[]>,
+  connect: (orgId, sessionId, hooks) => connectRuntimeConversation(runtimeDeps(), orgId, sessionId, hooks),
+  recordUsage: (sessionId, frame) => { recordRuntimeUsage(sessionId, frame); },
+  reloadHistory: async (sessionId) => { await loadSession(sessionId); },
+  fromSnapshot: (raw) => convertStoredMessagesToChatMessages(raw),
+  afterEvent: () => { void scrollToBottom(); },
+});
+const runtimeBanner = computed(() => (isRuntime.value ? linkBanner(runtime.link.value) : null));
+const runtimeReadOnly = computed(() => !!runtimeBanner.value?.readOnly);
+const runtimeBusy = computed(() => isRuntime.value && isBusyStatus(runtime.status.value));
+/** Affichage « ça travaille » : runtime = statut de la conversation, sinon génération locale. */
+const uiBusy = computed(() => (isRuntime.value ? runtimeBusy.value : isGenerating.value));
+/** Sur le runtime on peut écrire pendant que la conversation travaille (le message est mis en file). */
+const composerLocked = computed(() => (isRuntime.value ? runtimeReadOnly.value : isGenerating.value));
+const showStop = computed(() => (isRuntime.value ? runtimeBusy.value && !inputMsg.value.trim() : isGenerating.value));
+const lastQueuedText = computed(() => [...messages.value].reverse().find(m => m.role === 'user' && (m as unknown as TranscriptMessage).queued)?.content);
+
+watch([isRuntime, activeSessionId, () => openedOrg.value?.id], ([rt, sessionId, orgId]) => {
+  if (rt && sessionId && orgId) void runtime.open(orgId, sessionId);
+  else runtime.close();
+}, { immediate: true });
+onBeforeUnmount(() => runtime.close());
+
+const primaryAction = () => { if (showStop.value) stopGeneration(); else void sendMessage(); };
+
 // Recalculé à la volée depuis les messages en mémoire — pas de stockage dédié, cf. plan.
 const cumulativeUsage = computed(() => messages.value.reduce((acc, m) => {
   if (m.usage) acc.totalTokens += m.usage.totalTokens || 0;
@@ -484,6 +553,8 @@ const onChatScroll = () => {
 const canType = computed(() => !aiIsLocal.value || ['ready', 'loading', 'downloading'].includes(localLLM.status.value));
 
 const stopGeneration = () => {
+  // Annuler la conversation pendant un plan accepté vaut « arrêter le plan » (PC70) : le runtime le décide.
+  if (isRuntime.value) { void runtime.cancel(); return; }
   if (isGenerating.value) {
     aiService.interrupt();
     isGenerating.value = false;
@@ -811,7 +882,9 @@ const handleAgentToolDecision = async (
  * pour que PendingActionBar s'affiche de façon identique quel que soit le provider.
  */
 const pendingAction = computed<{ idx: number; tool: ToolStep } | null>(() => {
-  const idx = messages.value.length - 1;
+  let idx = messages.value.length - 1;
+  // Sur le runtime, un message « en file » peut suivre le tour qui attend la décision.
+  if (isRuntime.value) while (idx > 0 && messages.value[idx]?.role === 'user') idx--;
   const msg = messages.value[idx];
   if (!msg) return null;
 
@@ -820,9 +893,23 @@ const pendingAction = computed<{ idx: number; tool: ToolStep } | null>(() => {
   return toolPart ? { idx, tool: toolPart.tool } : null;
 });
 
+/** Décision sur un outil en attente d'une conversation runtime : le runtime reprend et le flux continue. */
+function decideOnRuntime(tool: ToolStep, accept: boolean, value?: string) {
+  tool.status = accept ? 'executing' : 'rejected';
+  if (tool.name === 'ask_question') void runtime.answer(tool.toolCallId, accept ? (value ?? '') : '');
+  else void runtime.confirm(tool.toolCallId, accept);
+}
+
 function acceptPendingAction(always = false, value?: string) {
   const pending = pendingAction.value;
   if (!pending) return;
+
+  if (isRuntime.value) {
+    // L'envoi d'image vers le runtime n'est pas encore pris en charge : on ne confirme pas à l'aveugle.
+    if (pending.tool.name === 'request_image_upload') { runtime.error.value = "L'envoi d'image n'est pas encore pris en charge avec le runtime."; return; }
+    decideOnRuntime(pending.tool, true, value);
+    return;
+  }
 
   if (always) autoAcceptTools.value.add(pending.tool.name);
 
@@ -842,6 +929,8 @@ function rejectPendingAction() {
   const pending = pendingAction.value;
   if (!pending) return;
 
+  if (isRuntime.value) { decideOnRuntime(pending.tool, false); return; }
+
   handleAgentToolDecision(pending.tool, false, pending.idx);
 }
 
@@ -850,6 +939,15 @@ function rejectPendingAction() {
  * (OpenAI/Mistral/Gemini/passerelle) ou dans le navigateur (WebGPU local, serveur custom).
  */
 const sendMessage = async () => {
+  if (isRuntime.value) {
+    const text = inputMsg.value.trim();
+    if (!text) return;
+    inputMsg.value = '';
+    if (!(await runtime.send(text))) inputMsg.value = text;
+    await scrollToBottom();
+    return;
+  }
+
   if (isGenerating.value) {
     stopGeneration();
     return;

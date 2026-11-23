@@ -8,6 +8,7 @@ import {
 } from './aiProviders';
 import sfetch from '@/assets/utils/sfetch';
 import { encryptForPeer, decryptFromPeer, privateKey, decryptAiField } from '@/assets/utils/crypto';
+import { planPartsFromHistory } from './aiRuntime/conversation/transcript';
 import { ensureAiSessionKey, AiSessionKeyUnavailableError } from './AiSessionKeyService';
 import { assertAllowedGateway, parseGatewayUrl } from './aiGatewayPolicy';
 import { ToolCallStreamParser, type ParsedEvent } from './agent/toolCallParser';
@@ -514,7 +515,7 @@ export const fetchSessions = async () => {
  * une réponse peut en effet être composée de plusieurs StoredMessage successifs (texte, tool,
  * texte, tool...) qui forment visuellement un seul tour assistant continu.
  */
-function convertStoredMessagesToChatMessages(stored: any[]): any[] {
+export function convertStoredMessagesToChatMessages(stored: any[]): any[] {
     const result: any[] = [];
     let currentTurn: any = null;
 
@@ -576,7 +577,7 @@ function convertStoredMessagesToChatMessages(stored: any[]): any[] {
 }
 
 /** true si ces messages viennent de la nouvelle boucle d'agent serveur (présence d'un rôle 'tool' ou de toolCalls structurés). */
-function isStructuredAgentTranscript(messages: any[]): boolean {
+export function isStructuredAgentTranscript(messages: any[]): boolean {
     return messages.some((m) => m.role === 'tool' || (Array.isArray(m.toolCalls) && m.toolCalls.length > 0));
 }
 
@@ -692,6 +693,9 @@ export const convHistoryIo = {
         return ui.conversationHistory.seal(orgId, sessionId, display);
     },
 };
+/** La conversation ouverte tourne sur le runtime (`session.regime === 'runtime'`) : l'app n'en est que la fenêtre (L12). */
+export const activeSessionIsRuntime = ref(false);
+
 /** Schéma de la conversation ouverte (`conv-gcm1-v1` : historique chiffré sous `CK`, jamais en blob E2EE). */
 const activeSessionIsConv = ref(false);
 
@@ -707,6 +711,7 @@ export const loadSession = async (id: string) => {
             let loadedMessages = session.messages || [];
             activeSessionReadOnly.value = false;
             activeSessionIsConv.value = session.encryptionScheme === 'conv-gcm1-v1';
+            activeSessionIsRuntime.value = session.regime === 'runtime';
 
             // PC81 : l'ouverture d'une conversation runtime de l'org l'enregistre, sinon la synchro ne la délègue pas.
             if (session.regime === 'runtime') {
@@ -783,6 +788,8 @@ export const loadSession = async (id: string) => {
                 loadedMessages = convertStoredMessagesToChatMessages(loadedMessages);
             }
 
+            // Conversation runtime : un appel `propose_actions` de l'historique redevient une carte de plan.
+            if (session.regime === 'runtime' && Array.isArray(loadedMessages)) planPartsFromHistory(loadedMessages);
             aiSessionMessages.value = loadedMessages;
             alignProviderWithSession(regime);
         }
@@ -817,6 +824,7 @@ export const newSession = () => {
     activeSessionLegacyPlain.value = false;
     activeSessionReadOnly.value = false;
     activeSessionIsConv.value = false;
+    activeSessionIsRuntime.value = false;
     sessionProviderOverride.value = null;
 };
 

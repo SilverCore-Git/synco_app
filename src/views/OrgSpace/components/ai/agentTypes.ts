@@ -18,7 +18,9 @@ export type TurnPart =
     | { type: 'text'; text: string }
     | { type: 'tool'; tool: ToolStep }
     /** Raisonnement du modèle avant sa réponse — affiché replié, façon "Réflexion (Xs)". */
-    | { type: 'thinking'; text: string; durationMs?: number };
+    | { type: 'thinking'; text: string; durationMs?: number }
+    /** Plan d'action proposé par l'agent (`propose_actions`, 12) : rendu par la carte de plan, jamais comme un outil. */
+    | { type: 'plan'; toolCallId: string };
 
 /** Libellés/icônes français par tool — utilisés par ToolStepItem pour l'affichage replié. */
 export const TOOL_LABELS: Record<string, { label: string; icon: string }> = {
