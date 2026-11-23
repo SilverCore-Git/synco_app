@@ -1357,3 +1357,34 @@ Corriger les constats de la revue crypto de `src/services/aiRuntime/`, un commit
 - Une conversation runtime créée sur un autre appareil n'est déléguée qu'après avoir été ouverte ici (L11 doit appeler `registerRuntimeConversation`).
 
 **Date** : 2026-11-23
+
+---
+
+## 📅 **2026-11-23 - Lot L11 : paramètres du runtime, politiques d'org, bascule des régimes**
+
+**Priorité** : ⭐⭐⭐⭐⭐ (Haute)  
+**Complexité** : Élevée  
+**Statut** : ✅ **TERMINÉ** (recette manuelle Firefox à faire ; bascule d'une conversation existante en attente de L10)
+
+### **Objectif**
+Écrans de L11 au-dessus de `src/services/aiRuntime` : onglets org « Runtime » et « Sécurité », onglet « Agent » des réglages utilisateur, bascule d'une conversation, fin du régime `gateway`.
+
+### **Changements**
+- **Fin du régime gateway** : `regimeOf('gateway')` = `client` ; `chat()` appelle `/v1/chat/completions` de la passerelle avec un ticket `sgt1` (`POST /ai/gateway-ticket`) après `assertAllowedGateway` ; `gatewayFetch`, `/chat` et `/chat/:id/tool-result` retirés ; `setEncryptedSessionTitle` retiré. Les anciennes conversations gateway restent lisibles (`hasEncryptedGatewayFields`, `AiSessionKey`) et se poursuivent en `client`.
+- **Org › Synco AI** : onglets Fournisseurs / Runtime (`AIRuntimeSettings.vue` : appairage en deux temps avec empreinte, désappairage, durée max D4, `toolPolicy` D5) / Sécurité (`AISecuritySettings.vue`, `FeaturePolicyCard.vue`, `MemberPicker.vue` : trois cartes, puces repliées, recherche, annonce chiffrée avant enregistrement, journal).
+- **Réglages utilisateur** : onglet « Agent » (`AgentTab.vue`, `AutonomyWarning.vue`) : où tourne l'agent, empreinte, délégation et « Révoquer », mode autonome (case non précochée), « Toujours accepter » en puces (`aiAutoAccept.ts`, jamais une action sensible).
+- **Bascule** : `RuntimeSwitchControl.vue` dans `AiComposerControls.vue` ; `aiRuntimeUi.ts` (erreurs expliquées, `switchConversationToRuntime/ToLocal`) ; `registerRuntimeConversation` appelé à la bascule et à l'ouverture d'une conversation runtime (`loadSession`).
+
+### **Fichiers Créés**
+`src/services/aiFeaturePolicies.ts`, `aiRuntimeUi.ts`, `aiAutoAccept.ts` (+ tests), `src/components/windows/aiSettings/{AgentTab,AutonomyWarning}.vue`, `src/views/OrgSpace/views/settings/views/{AIRuntimeSettings,AISecuritySettings}.vue`, `…/components/{FeaturePolicyCard,MemberPicker}.vue`, `policyMembers.ts`, `src/views/OrgSpace/components/ai/RuntimeSwitchControl.vue`.
+
+### **Notes**
+- Limite : L10 n'expose pas le constructeur du corps de `switch-to-runtime` (rechiffrement de l'historique sous `CK`, entrée `conv`). `setSwitchBodyBuilder` attend ce constructeur ; sans lui, « Faire tourner sur le runtime » explique que la bascule arrive avec le lot suivant. « Revenir en local » fonctionne.
+- Réglage « Toujours accepter » : liste JSON dans `ai_auto_accept_<orgId>` (le réglage du compte refuse les tableaux) ; à consommer par L12.
+- Aucun montant en euros ; aucune rangée par membre (recherche limitée à 8 résultats).
+
+**Date** : 2026-11-23
+
+### **Prochaines Étapes**
+1. L10 : fonction qui construit le corps de `switch-to-runtime`, à brancher par `setSwitchBodyBuilder`.
+2. Recette manuelle Firefox avec un vrai runtime (porte D), `defaults.ts` (sfetch, CORS, socket), comparaison aux captures C3.
