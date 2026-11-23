@@ -1506,3 +1506,27 @@ vue-tsc 0 erreur ; `bun test src/services` : 281 réussis.
 - Les `plan_result` d'appareil ne sont pas servis par l'API : une phase déposée par un AUTRE appareil n'est pas relisible ici (ses dépendantes passent `failed`). Un `plan_result` servi (ou relu depuis la boîte) lèverait ce cas.
 - Une action restée `executing` sans aucune action prête n'est reprise qu'à l'expiration du claim par un nouveau claim (comportement inchangé).
 - Recette manuelle Firefox : reprise après rechargement, carte avec lieu inconnu, groupe replié (plan de 100 actions).
+
+## 📅 **2026-11-23 - Lot L13 : dock Synco AI, « Demander à Synco AI », Ctrl/Cmd+J, bulle de notification**
+
+**Statut** : 🟢 code, tests et vue-tsc faits ; recette visuelle Firefox à faire.
+
+### **Changements (un commit par étape)**
+1. `composables/useAgentDock.ts` : entrées du dock (`min` / `open` / `full`), persistance `localStorage` (retour en barres réduites), plafond `MAX_PANELS` partagé avec les tâches (`dockCapacity.ts`, `useTaskPanels.ts`), `Ctrl/Cmd+J` (`toggleShortcut`), jamais d'ouverture sans geste (PC80), rien de visible quand rien n'est ouvert (PC75).
+2. `services/agentDock/` : `context.ts` (contexte, suggestions par module, contenu joint seulement si déjà en clair, bloc de contexte traité en donnée), `barState.ts`, `nudges.ts` (bulles, groupes « À traiter / En cours / Récentes »), `shortcut.ts`, `newConversation.ts` (créer en local puis basculer aussitôt, erreur expliquée sinon) et son branchement réel.
+3. `Notifications.vue` : type `notif:agent` (bulle PC80, bordure ambre, clic = ouvre le dock sur la conversation, `aria-live="polite"`, sans voler le focus).
+4. `components/agentDock/` : `AgentDockColumn` (barres, « Tout fermer », glisser pour fermer, panneau 400 px, plein écran sur mobile), `AgentDockPanel` (fil via `AgentTurn`, `RuntimePlanPanel` / `PlanCard` pour le plan, `PendingActionBar`, puce de contexte, suggestions, composeur), `AgentWindow` (PC78). Montés dans `App.vue` ; `OrgAI.vue` : « Détacher dans le dock », reprise d'une demande venue du dock.
+5. « Demander à Synco AI » : fichiers, dossiers, tâches (espace et global), évènements (menu « ··· » du panneau), messages de salon et privés (barre d'actions et feuille mobile).
+
+### **Choix**
+- Un seul panneau déplié à la fois : il lit la conversation active de l'app (`aiSessionMessages`) ; pendant que la page complète est affichée, il n'ouvre pas de second flux (carte « ouverte dans la page complète »).
+- Conversation locale dans le dock : lecture seule, « Continuer » mène à la page complète. Runtime indisponible ou bascule refusée : message expliqué, la demande est reprise dans la page complète.
+- Bulles : alimentées par le statut des conversations runtime (`GET …/ai/sessions`, relu toutes les 30 s). « Une action à valider » (le nombre d'actions n'est pas dans la liste).
+- Ctrl+J : aucun champ ni éditeur de l'app ne le lie (vérifié par recherche) ; le raccourci ignore les éditeurs de code ou riches et les évènements déjà gérés.
+
+### **Vérifications**
+vue-tsc 0 erreur (détection vérifiée par une erreur volontaire) ; `bun test src/services` + `useAgentDock.test.ts` : 313 réussis (281 + 32).
+
+### **Reste ouvert**
+- Recette manuelle Firefox, comparée à `C3_maquettes/png` : dock, agrandi, demander, mobile, états.
+- Composeur du dock : pas de choix de modèle ni de bouton « Contexte » ; nombre d'actions sur la barre et la bulle ; sélection + Ctrl+J avec contexte ; entrée « salon » et module Documents hors fichiers ; états « plan exécuté ailleurs » et clé changée seulement via le fil.

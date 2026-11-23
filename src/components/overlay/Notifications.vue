@@ -200,6 +200,31 @@
 
                     </template>
 
+                    <template v-else-if="notif.type == 'notif:agent'">
+
+                        <!-- Bulle de l'agent (PC80) : un clic ouvre le dock sur la conversation. Annoncée
+                             poliment, sans voler le focus. Jamais le contenu de la conversation. -->
+                        <button
+                            type="button"
+                            class="agent-nudge flex items-center gap-3 w-full text-left pr-6"
+                            aria-live="polite"
+                            @click="openAgentNudge(notif)"
+                        >
+                            <span class="relative shrink-0 w-11 h-11 rounded-full bg-(--primary)/15 text-(--primary) flex items-center justify-center text-xl">
+                                <i class="bi bi-robot" />
+                                <span class="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-amber-500 text-black flex items-center justify-center border-2 border-(--bg2)">
+                                    <i class="bi text-[9px]" :class="notif.agent?.label.startsWith('Une question') ? 'bi-question-lg' : 'bi-diagram-3-fill'" />
+                                </span>
+                            </span>
+                            <span class="flex-1 min-w-0">
+                                <span class="block text-(--text) text-sm font-bold truncate">{{ notif.agent?.title }}</span>
+                                <span class="block text-amber-500 text-sm font-medium truncate">{{ notif.agent?.label }}</span>
+                            </span>
+                            <span class="shrink-0 text-xs font-bold text-(--primary)">Ouvrir</span>
+                        </button>
+
+                    </template>
+
                     <template v-else-if="notif.type == 'notif:missedCall'">
 
                         <RouterLink
@@ -291,6 +316,7 @@ import { defaultAvatar } from '@/assets/utils/defaultAvatar';
 import getSpaceIdByThreadId from '@/assets/utils/getSpaceWithThreadId';
 import { openedOrg, user } from '@/assets/var';
 import useNotifications, { type Notification, type NotificationType } from '@/composables/useNotifications';
+import { useAgentDock } from '@/composables/useAgentDock';
 import useSecurePeer from '@/composables/useSecurePeer';
 import usePrivateMeet from '@/composables/usePrivatMeet';
 import { computed, onMounted, watch } from 'vue';
@@ -308,6 +334,14 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 
 const { notifications, initListener, remove } = useNotifications();
 const router = useRouter();
+const agentDock = useAgentDock();
+
+// Clic sur la bulle de l'agent : le dock s'ouvre sur cette conversation (geste de l'utilisateur, PC80).
+const openAgentNudge = (notif: Notification) => {
+    if (!notif.agent || !openedOrg.value) return;
+    agentDock.openSession(openedOrg.value.id, notif.agent.sessionId, notif.agent.title);
+    remove(notif.id);
+};
 const { acceptCall, rejectCall } = useSecurePeer();
 const { acceptIncomingMeet, declineIncomingMeet } = usePrivateMeet();
 const { Item: privacyMode } = useSettingsItem('privacyMode', false);
@@ -354,6 +388,7 @@ const getStyles = (type: NotificationType, toastType?: string) => {
         case 'notif:privateMeet': return 'bg-(--bg2)/80 border border-(--text)/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
         case 'notif:privateMeetMsg': return 'bg-(--bg2)/80 border border-(--text)/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
         case 'notif:missedCall': return 'bg-(--bg2)/80 border border-(--text)/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
+        case 'notif:agent': return 'bg-(--bg2)/90 border border-amber-500/40 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-amber-500/70 transition-colors';
         case 'notif:missedMeet': return 'bg-(--bg2)/80 border border-(--text)/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl cursor-pointer hover:border-primary/30 transition-colors';
 
     }

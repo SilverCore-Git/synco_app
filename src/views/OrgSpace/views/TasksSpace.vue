@@ -320,6 +320,7 @@
                                 <i class="bi bi-archive" />
                                 Archiver
                             </button>
+                            <AskSyncoMenuItem :context="{ kind: 'task', id: task.id, name: task.title, content: task.description ?? undefined }" />
                             <button
                                 @click="handleContextDeleteTask(task)"
                                 class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
@@ -406,6 +407,7 @@ import TaskUserFilter from '../components/TaskUserFilter.vue';
 import MobileBackBtn from '@/components/common/MobileBackBtn.vue';
 import { useTaskPanels } from '@/composables/useTaskPanels';
 import DropDown from '@/components/DropDown.vue';
+import AskSyncoMenuItem from '@/components/agentDock/AskSyncoMenuItem.vue';
 import TaskTagPicker from '../components/popup/TaskTagPicker.vue';
 import ConfirmDelete from '@/components/common/ConfirmDelete.vue';
 import { useNotification } from '@/composables/useNotification';

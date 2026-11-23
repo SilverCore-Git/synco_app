@@ -296,6 +296,10 @@
                     ref="menuEl"
                     class="absolute right-3 bottom-full mb-1 min-w-56 p-1.5 rounded-xl bg-(--bg) border border-(--border-color) shadow-xl flex flex-col gap-0.5 z-10"
                 >
+                    <button v-if="canAskSynco() && state.eventId" type="button" class="task-menu-item" @click="askAboutEvent">
+                        <i class="bi bi-stars text-(--primary)"></i> Demander à Synco AI
+                    </button>
+                    <div v-if="canAskSynco() && state.eventId" class="my-0.5 h-px bg-(--border-color)" role="separator"></div>
                     <button v-if="isRecurringSeries" type="button" class="task-menu-item text-red-500!" @click="askDelete('occurrence')">
                         <i class="bi bi-calendar-x"></i> Annuler cette occurrence
                     </button>
@@ -333,6 +337,14 @@ const props = withDefaults(defineProps<{
     state: EventPanelState;
     variant?: 'panel' | 'popup';
 }>(), { variant: 'panel' });
+
+import { askSynco, canAskSynco } from '@/composables/useAskSynco';
+
+/** « Demander à Synco AI » sur l'évènement : sa référence et son titre, pas de contenu (réunion, participants). */
+const askAboutEvent = () => {
+    menuOpen.value = false;
+    if (props.state.eventId) askSynco({ kind: 'event', id: props.state.eventId, name: props.state.form.title || 'Évènement sans titre', detail: 'Agenda' });
+};
 
 const { saveEvent, addEventReminder, removeEventReminder, respondToEvent, deleteEventFromPanel } = useEventPanels();
 const { acceptedSharedCalendars } = useCalendarAccess();

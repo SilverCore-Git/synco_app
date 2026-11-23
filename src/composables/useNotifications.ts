@@ -6,7 +6,7 @@ import router from "@/router";
 import { useNotificationMutes } from "./useNotificationMutes";
 
 
-type NotificationType = 'toast' | 'notif:msg' | 'notif:dmmsg' | 'notif:call' | 'notif:privateMeet' | 'notif:privateMeetMsg' | 'notif:missedCall' | 'notif:missedMeet';
+type NotificationType = 'toast' | 'notif:msg' | 'notif:dmmsg' | 'notif:call' | 'notif:privateMeet' | 'notif:privateMeetMsg' | 'notif:missedCall' | 'notif:missedMeet' | 'notif:agent';
 
 interface Notification {
 
@@ -40,6 +40,10 @@ interface Notification {
     // une trace visible même une fois la sonnerie/carte d'appel disparue.
     missedCall?: OrgMember;
     missedMeet?: OrgMember;
+
+    // if notif:agent (PC80) — Synco AI a besoin de l'utilisateur : jamais le contenu de la
+    // conversation, seulement son titre et ce qui est attendu. `key` change quand l'attente change.
+    agent?: { sessionId: string; title: string; label: string; key: string };
 
 }
 
@@ -228,6 +232,15 @@ const notify = (type: NotificationType, payload: any, timeout?: number): number 
             type,
             createdAt: new Date(),
             missedMeet: payload
+        });
+    }
+    else if (type === 'notif:agent')
+    {
+        notifications.value.push({
+            id,
+            type,
+            createdAt: new Date(),
+            agent: payload
         });
     }
 

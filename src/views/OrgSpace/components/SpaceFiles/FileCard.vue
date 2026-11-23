@@ -127,6 +127,7 @@
                         <i class="bi bi-send" />
                         Transférer
                     </button>
+                    <AskSyncoMenuItem :context="{ kind: 'file', id: file.id, name: file.originalName, detail: file.mimeType }" />
                     <button
                         @click="deleteFile(file)"
                         class="dropdown-item-annimate dropdown-item-style gap-2 text-red-500! hover:bg-red-500/5!"
@@ -171,6 +172,7 @@ import { user } from '@/assets/var';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { downloadFile } from '@/assets/utils/downloadFile';
 import DropDown from '@/components/DropDown.vue';
+import AskSyncoMenuItem from '@/components/agentDock/AskSyncoMenuItem.vue';
 import EditFile from '../popup/EditFile.vue';
 import WatermarkFile from '../popup/WatermarkFile.vue';
 import FileViewer from '../popup/FileViewer.vue';

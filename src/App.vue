@@ -12,6 +12,7 @@ import type { User } from '@/types/types';
 import Notifications from './components/overlay/Notifications.vue';
 import TransfersPanel from './components/overlay/TransfersPanel.vue';
 import TaskPanelDock from './views/OrgSpace/components/TaskPanel/TaskPanelDock.vue';
+import AgentDockColumn from './components/agentDock/AgentDockColumn.vue';
 import ExtensionSuggestion from './components/overlay/ExtensionSuggestion.vue';
 import UpdateAvailable from './components/overlay/UpdateAvailable.vue';
 import V4MigrationDialog from './components/e2ee/V4MigrationDialog.vue';
@@ -872,6 +873,7 @@ onMounted(async () => {
       class="fixed bottom-[calc(1rem+var(--br-lift,0px))] right-4 z-[1500] flex flex-col items-end gap-3 max-h-[calc(100dvh-5rem-var(--br-lift,0px))] pointer-events-none transition-[bottom] duration-300 ease-out"
     >
       <TaskPanelDock v-if="authenticated && user" />
+      <AgentDockColumn v-if="authenticated && user" />
       <TransfersPanel />
     </div>
     <ConnectionStatusBanner />
