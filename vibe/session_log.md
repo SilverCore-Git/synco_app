@@ -1420,3 +1420,26 @@ Construire le corps de `POST …/ai/sessions/:sessionId/switch-to-runtime` (04 �
 ### **Prochaines Étapes**
 1. Recette manuelle Firefox : bascule d'une conversation claire, gateway et client ; retour local puis retour runtime (CK conservée).
 2. Le blob `isE2EE` reste invisible par `GET /ai/sessions/:id` (l'API ne rend que les tableaux) : seul l'appareil qui l'affiche peut le basculer.
+
+---
+
+## 📅 **2026-11-23 - Lot L11 : corrections de la revue**
+
+**Statut** : ✅ **TERMINÉ** (recette manuelle Firefox à faire)
+
+### **Changements (un commit par point)**
+1. `listGatewayModels` : ticket `sgt1` (`/ai/gateway-ticket`), présenté seulement à l'origine enregistrée ; plus de jeton Keycloak ; `any` supprimé.
+2. `activeSessionReadOnly` : conversation illisible = lecture seule ; `syncSession` n'écrit plus jamais en clair (ni sans clé).
+3. `loadSession` lit `conv-gcm1-v1` (`openConversationMessages`, CK) ; `syncSession` réécrit sous CK (`sealConversationMessages`) ; « Revenir en local » fait `await loadSession(id)`.
+4. Nouveau : la bascule ouvre le blob `isE2EE` rendu par l'API (`openClientBlob`) ; illisible ou format inconnu = `history_unreadable`, jamais un historique vide (`displayedMessages` supprimé).
+5. `confirmedFingerprint` (L10) : seule l'empreinte affichée est confirmée (AgentTab, RuntimeSwitchControl) ; `pairRuntime(…, expectedFingerprint)` compare à l'aperçu ; champs figés pendant l'aperçu ; bandeau `first_seen_after_change` dès le chargement.
+6. AgentTab : pas de redélégation après acceptation de clé si aucune délégation active ; autonomie seulement sur le runtime ; désactivation toujours possible (`aiAgentRules.ts`).
+7. Tout le monde vers liste : un seul `PUT { mode, userIds }` (`applyPolicyChange`, refus au-delà de 100) ; annonce au plus juste (liste vide = tous perdent ; sinon au moins n − choisies).
+8. « Toujours accepter » : liste blanche des types admis, drapeau `sensitive` du manifeste prioritaire s'il existe.
+Mineurs : « +N » cherche côté serveur (`?q=`) ; annonce « Toujours accepter » sans compte d'utilisateurs.
+
+### **Vérifications**
+vue-tsc : 0 erreur. `bun test src/services` : 191 réussis, 0 échec.
+
+### **Reste ouvert**
+`MemberPicker` cherche dans l'annuaire local (aucun endpoint serveur de recherche de membres) ; PC81 « à la création » sans objet (l'API refuse de créer une conversation runtime) ; le manifeste des outils n'a pas de drapeau `sensitive` ; la conversion affichage vers StoredMessage à l'écriture CK horodate tous les messages à l'instant de la synchro.
