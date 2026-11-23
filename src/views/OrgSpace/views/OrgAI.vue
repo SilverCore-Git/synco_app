@@ -28,6 +28,15 @@
           >
             {{ formatTokenCount(cumulativeUsage.totalTokens) }} tokens
           </span>
+          <button
+            v-if="activeSessionId && !isLittleScreen"
+            type="button"
+            class="text-[11px] font-semibold text-(--text2) hover:text-(--text) bg-(--text)/5 hover:bg-(--text)/10 px-2.5 py-1 rounded-full flex items-center gap-1.5 transition-colors"
+            title="Continuer cette conversation dans le dock, en bas à droite"
+            @click="detachToDock"
+          >
+            <i class="bi bi-box-arrow-in-down-right"></i> Détacher dans le dock
+          </button>
           <UsersBarToggle class="ml-2 text-lg text-(--text2)" />
         </div>
       </div>
@@ -353,7 +362,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch, toRaw, type Ref } from 'vue';
 import { localLLM } from '@/services/LocalLLMService';
-import { aiService, aiIsLocal, aiIsClientDriven, aiSessionNotEncrypted, aiPrefsReady, aiSessionMessages, syncSession, fetchSessions, activeSessionId, clientAgentTurn, resumeClientAgent, activeSessionIsRuntime, loadSession, convertStoredMessagesToChatMessages } from '@/services/AIService';
+import { aiService, aiIsLocal, aiIsClientDriven, aiSessionNotEncrypted, aiPrefsReady, aiSessionMessages, syncSession, fetchSessions, activeSessionId, clientAgentTurn, resumeClientAgent, activeSessionIsRuntime, loadSession, convertStoredMessagesToChatMessages, chatSessions } from '@/services/AIService';
 import ThreadTextarea from '../components/common/ThreadTextarea.vue';
 import ThreadMessage from '../components/common/ThreadMessage.vue';
 import { useTaskPanels } from '@/composables/useTaskPanels';
@@ -373,6 +382,8 @@ import MarkdownRender from './MarkdownRender.vue';
 import type { TurnPart, ToolStep } from '../components/ai/agentTypes';
 import UsersBarToggle from '@/views/OrgSpace/components/layouts/UsersBarToggle.vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useAgentDock } from '@/composables/useAgentDock';
+import { isLittleScreen } from '@/assets/var';
 
 const route = useRoute();
 const router = useRouter();
@@ -988,7 +999,24 @@ watch([aiIsLocal, aiPrefsReady], ([isLocal, ready]) => {
   if (isLocal && ready) localLLM.autoLoadIfCached();
 }, { immediate: true });
 
+// Dock Synco AI : la page complète est affichée (le dock n'ouvre pas de second flux sur la conversation), et
+// une demande venue du dock est reprise ici (consommée une fois).
+const agentDock = useAgentDock();
+agentDock.enterFullPage();
+onBeforeUnmount(() => agentDock.leaveFullPage());
+
+/** « Détacher dans le dock » : la conversation passe dans le dock, la page complète se ferme (geste de l'utilisateur). */
+const detachToDock = () => {
+  const id = activeSessionId.value;
+  const orgId = openedOrg.value?.id;
+  if (!id || !orgId) return;
+  const title = (chatSessions.value.find((s: { id: string }) => s.id === id)?.title as string | undefined) || 'Conversation';
+  void router.push({ name: 'OrgHome', params: { orgId } }).then(() => agentDock.openSession(orgId, id, title));
+};
+
 onMounted(async () => {
+  const pending = agentDock.takePendingPrompt();
+  if (pending && !inputMsg.value) inputMsg.value = pending;
   await nextTick();
   autoFocus(chatInputRef.value?.textarea);
 });
