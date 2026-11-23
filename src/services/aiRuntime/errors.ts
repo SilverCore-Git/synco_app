@@ -43,6 +43,10 @@ export const AI_RUNTIME_ERROR_CODES = [
     'plan_digest_mismatch',
     'plan_not_pending',
     'not_runtime',
+    // Bascule d'une conversation existante (03 §6.4, 04 §5)
+    'conversation_key_unavailable',
+    'history_unreadable',
+    'history_too_large',
     // Communs
     'ai_disabled',
     'rate_limited',
@@ -84,6 +88,9 @@ const MESSAGES: Record<AiRuntimeErrorCode, string> = {
     plan_digest_mismatch: "Le plan d'action ne correspond pas à ce que le runtime a annoncé.",
     plan_not_pending: "Ce plan d'action n'attend plus de décision.",
     not_runtime: "Cette conversation ne tourne pas sur le runtime.",
+    conversation_key_unavailable: "La clé de cette conversation n'est pas disponible sur cet appareil.",
+    history_unreadable: "L'historique de cette conversation n'a pas pu être relu sur cet appareil.",
+    history_too_large: "L'historique de cette conversation est trop volumineux pour le runtime.",
     ai_disabled: "Le module IA est désactivé pour cette organisation.",
     rate_limited: 'Trop de requêtes, nouvel essai plus tard.',
     forbidden: 'Action non autorisée.',

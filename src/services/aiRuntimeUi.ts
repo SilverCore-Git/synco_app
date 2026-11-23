@@ -11,6 +11,8 @@ import {
     createDefaultAiRuntimeDeps,
     getDelegationSummary,
     registerRuntimeConversation,
+    isKnownRuntimeConversation,
+    forgetRuntimeConversation,
     verifyRuntimeForDelegation,
     type AiRuntimeDeps,
     type AiRuntimeErrorCode,
@@ -103,6 +105,12 @@ export function explainRuntimeError(e: unknown, extra: { pinnedFingerprint?: str
             return P(e.code, 'alert', 'Certificat du runtime refusé', "Le certificat n'a pas été signé par un administrateur de l'organisation. Un administrateur doit appairer le runtime à nouveau.");
         case 'rate_limited':
             return P(e.code, 'info', 'Trop de demandes', 'Réessayez dans quelques instants.');
+        case 'conversation_key_unavailable':
+            return P(e.code, 'warning', 'Clé de la conversation indisponible', "Cet appareil ne peut pas ouvrir la clé de cette conversation. Rien n'a été envoyé au runtime ; la conversation reste en local.");
+        case 'history_unreadable':
+            return P(e.code, 'warning', 'Historique illisible', "Une partie de l'historique n'a pas pu être relue sur cet appareil. Rien n'a été envoyé au runtime ; la conversation reste en local.");
+        case 'history_too_large':
+            return P(e.code, 'info', 'Conversation trop longue', "Son historique dépasse la taille admise par le runtime (8 Mio). Commencez une nouvelle conversation sur le runtime.");
         default:
             return P(e.code, 'warning', 'Une erreur est survenue', e.message);
     }
@@ -205,11 +213,21 @@ export async function switchConversationToRuntime(deps: AiRuntimeDeps, orgId: st
     const builder = options.builder === undefined ? switchBodyBuilder : options.builder;
     if (!builder) throw new SwitchUnavailableError();
     let summary = await getDelegationSummary(deps, orgId);
-    if (!summary || summary.status !== 'active' || summary.expiresAt.getTime() <= deps.clock.now() * 1000) {
+    // DK absente de la mémoire (nouvelle session de l'app) : l'entrée `conv` ne peut pas être scellée,
+    // il faut une délégation neuve (03 §7.2).
+    if (!summary || summary.status !== 'active' || !summary.keysInMemory || summary.expiresAt.getTime() <= deps.clock.now() * 1000) {
         summary = await createDelegation(deps, orgId, { mode: summary?.mode ?? 'plan', confirmFirstSeen: options.confirmFirstSeen });
     }
-    const body = await builder({ orgId, sessionId, runtimeId: summary.runtimeId, delegationId: summary.delegationId });
-    await post(deps, orgId, sessionId, 'switch-to-runtime', body);
+    // PC81 : le constructeur enregistre la conversation AVANT de sceller son entrée `conv` ; si la
+    // bascule échoue, une conversation qui n'était pas déjà connue est retirée du registre.
+    const wasKnown = await isKnownRuntimeConversation(deps, orgId, sessionId);
+    try {
+        const body = await builder({ orgId, sessionId, runtimeId: summary.runtimeId, delegationId: summary.delegationId });
+        await post(deps, orgId, sessionId, 'switch-to-runtime', body);
+    } catch (e) {
+        if (!wasKnown) await forgetRuntimeConversation(deps, orgId, sessionId).catch(() => undefined);
+        throw e;
+    }
     await registerRuntimeConversation(deps, orgId, sessionId);
     await addMissingEntries(deps, orgId).catch(() => undefined);
     return summary;
