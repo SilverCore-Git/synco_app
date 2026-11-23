@@ -4,7 +4,8 @@
  * dépose `plan_result:<k>`. Pur : l'exécution réelle (routes de création) et les attentes sont injectées.
  *
  * Règles tenues ici :
- * - une action n'est lancée que si l'API la dit prête et `pending`, et si `progress executing` est accepté
+ * - une action n'est lancée que si l'API la dit prête et `pending`, si l'utilisateur l'a acceptée sur cet
+ *   appareil (intersection, jamais l'état servi seul), et si `progress executing` est accepté
  *   (`action_state_conflict` : on ne lance rien) ;
  * - les références `$m.champ` sont résolues depuis les résultats déchiffrés et doivent égaler la sortie
  *   enregistrée par l'API (écart : `failed` sans appel) ;
@@ -14,6 +15,7 @@
  */
 import { parseArgRef, type JsonObject, type JsonValue } from '@/assets/utils/aiActionPlan';
 import { fetchPlanView, openAgentResults, sealDevicePhaseResult, type OpenedPlan, type PhaseOutcome, type ServedPlanView } from '../actionPlan';
+import type { PlanLocalStore } from './planLocal';
 import { creationFailureState } from './deviceErrors';
 import { claimPhase, depositPlanResult, isCode, postProgress, type PlanRoute } from './planApi';
 
@@ -34,6 +36,8 @@ export interface RunnerDeps {
     deviceId: string;
     ck: CryptoKey | Uint8Array;
     opened: OpenedPlan;
+    /** État local du plan : actions acceptées sur cet appareil (rien n'est exécuté sans elles) et phases déjà scellées. */
+    local: PlanLocalStore;
     /** Appelle la route normale de création avec `X-Synco-Plan: header` ; rend `{ id, spaceId? }`. Lève en cas d'échec. */
     execute(call: DeviceCall, planHeader: string): Promise<Record<string, string>>;
     /** Ajoute les entrées des salons créés à la délégation (03 §7.2, 12 §8.2 étape 5). Non bloquant. */
@@ -65,17 +69,22 @@ export function cleanOutput(out: Record<string, unknown>): Record<string, string
     return o;
 }
 
-/** Prête pour l'appareil d'après l'API (12 §8.1) : `pending`, prête, d'exécutant `device`. */
-const deviceReady = (v: ServedPlanView): number[] =>
-    v.actions.filter(a => a.executor === 'device' && a.state === 'pending' && a.ready === true).map(a => a.n).sort((a, b) => a - b);
+/**
+ * Prête pour l'appareil : `pending`, prête d'après l'API (12 §8.1), d'exécutant `device` ET acceptée par
+ * l'utilisateur sur cet appareil. L'ensemble accepté inconnu (`null`) ne laisse rien partir.
+ */
+const deviceReady = (v: ServedPlanView, accepted: ReadonlySet<number> | null): number[] =>
+    v.actions.filter(a => a.executor === 'device' && a.state === 'pending' && a.ready === true && !!accepted?.has(a.n)).map(a => a.n).sort((a, b) => a - b);
 
 const running = (v: ServedPlanView) => v.status === 'accepted' || v.status === 'executing';
 
 export async function runDevicePhase(deps: RunnerDeps): Promise<PhaseResult> {
     const { route, opened } = deps;
+    const acceptedList = deps.local.read(route.planId).accepted;
+    const accepted = acceptedList ? new Set(acceptedList) : null;
     let view = await fetchPlanView(route.api, route.orgId, route.sessionId, route.planId);
     deps.onView?.(view);
-    if (!running(view) || deviceReady(view).length === 0) return { kind: 'none' };
+    if (!running(view) || deviceReady(view, accepted).length === 0) return { kind: 'none' };
 
     const phase = (view.devicePhases ?? 0) + 1;
     try {
@@ -191,7 +200,7 @@ export async function runDevicePhase(deps: RunnerDeps): Promise<PhaseResult> {
             const expired = view.expiresAt !== undefined && deps.now() > view.expiresAt;
             const mayStart = running(view) && !expired && !lostClaim && !deps.stopped?.();
             if (mayStart) {
-                for (const n of deviceReady(view)) {
+                for (const n of deviceReady(view, accepted)) {
                     if (inFlight.size >= concurrency) break;
                     if (started.has(n)) continue;
                     started.add(n);

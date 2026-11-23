@@ -94,6 +94,7 @@ import PlanGraphWindow from '@/services/aiRuntime/plan/PlanGraphWindow.vue';
 import PlanSummary from '@/services/aiRuntime/plan/PlanSummary.vue';
 import { loadPlanEnv, orgKnownLocalId, orgResolver } from '@/services/aiRuntime/plan/planEnv';
 import { autoAcceptAfterPolicy, policyAllows } from '@/services/aiRuntime/plan/planAutoAccept';
+import { createPlanLocalStore } from '@/services/aiRuntime/plan/planLocal';
 import { usePlanFlow, type PlanFlow } from '@/services/aiRuntime/plan/planFlow';
 import { dockLabel, gauge } from '@/services/aiRuntime/plan/planProgress';
 import type { PendingPlanCall } from '@/services/aiRuntime/actionPlan';
@@ -124,6 +125,7 @@ const asPendingCall = (raw: unknown): PendingPlanCall | null => {
 const deviceId = crypto.randomUUID();
 let unmounted = false;
 let loop: ReturnType<typeof createRunnerLoop> | null = null;
+const localStore = () => createPlanLocalStore(typeof localStorage === 'undefined' ? null : localStorage, props.orgId, props.sessionId);
 
 function startRunner(flowRef: PlanFlow, deps: ReturnType<typeof runtimeDeps>, ck: CryptoKey): void {
     loop?.stop();
@@ -134,7 +136,7 @@ function startRunner(flowRef: PlanFlow, deps: ReturnType<typeof runtimeDeps>, ck
             if (!loaded) return { kind: 'none' };
             return runDevicePhase({
                 route: { api: deps.api, orgId: props.orgId, sessionId: props.sessionId, planId: loaded.view.planId },
-                deviceId, ck, opened: loaded.opened,
+                deviceId, ck, opened: loaded.opened, local: localStore(),
                 execute: (call, header) => executeDeviceAction(call, header, props.orgId),
                 syncKeys: async () => { await addMissingEntries(deps, props.orgId); },
                 wait: ms => new Promise(resolve => setTimeout(resolve, ms)),
@@ -167,6 +169,7 @@ async function init(): Promise<void> {
             return call && call.id === props.toolCallId ? call : null;
         },
         now: () => Date.now(),
+        local: localStore(),
         // Réglage du compte « Toujours accepter » de cette org, relu à chaque plan.
         autoAccept: () => autoAcceptAfterPolicy(env.autoAcceptPolicy, parseAutoAccept(useSettingsItem(`ai_auto_accept_${props.orgId}`, '[]').Item.value)),
         autoAcceptAllowed: () => policyAllows(env.autoAcceptPolicy),

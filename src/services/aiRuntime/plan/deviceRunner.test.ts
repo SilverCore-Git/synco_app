@@ -6,6 +6,7 @@ import { AiRuntimeError } from '../errors';
 import { openPhaseResult, openPlan, type OpenedPlan, type ServedPlanView } from '../actionPlan';
 import type { ApiPort, HttpMethod } from '../ports';
 import { DeviceHttpError, DeviceNotSentError } from './deviceErrors';
+import { memoryPlanLocalStore } from './planLocal';
 import { runDevicePhase, type DeviceCall } from './deviceRunner';
 
 interface V { sessionId: string; planId: string; ckHex: string; plan: JsonObject; planValue: string; planExecutors: ('device' | 'agent')[]; toolManifest: JsonValue; serverDigests: { plan: string | null; n: number | null; sha256Hex: string }[] }
@@ -102,13 +103,15 @@ async function opened(): Promise<OpenedPlan> {
 }
 
 interface Setup { server: FakeServer; calls: { call: DeviceCall; header: string }[]; sync: number; run: () => ReturnType<typeof runDevicePhase> }
-async function setup(opts: { fail?: number[]; failWith?: Error; concurrency?: number; onExecute?: (n: number, s: FakeServer) => void; recordedId?: (n: number) => string } = {}): Promise<Setup> {
+async function setup(opts: { fail?: number[]; failWith?: Error; concurrency?: number; onExecute?: (n: number, s: FakeServer) => void; recordedId?: (n: number) => string; accepted?: number[] | null } = {}): Promise<Setup> {
+    const local = memoryPlanLocalStore();
+    if (opts.accepted !== null) local.saveAccepted(v.planId, opts.accepted ?? [1, 2, 3, 4, 5]);
     const server = new FakeServer();
     const o = await opened();
     const calls: Setup['calls'] = [];
     const st: Setup = { server, calls, sync: 0, run: async () => ({ kind: 'none' }) };
     st.run = () => runDevicePhase({
-        route: { api: server, orgId: 'o', sessionId: v.sessionId, planId: v.planId }, deviceId: 'dev1', ck, opened: o,
+        route: { api: server, orgId: 'o', sessionId: v.sessionId, planId: v.planId }, deviceId: 'dev1', ck, opened: o, local,
         execute: async (call, header) => {
             calls.push({ call, header });
             opts.onExecute?.(call.n, server);
@@ -162,6 +165,16 @@ describe('phase d’appareil', () => {
         const local = await setup({ fail: [3], failWith: new DeviceNotSentError('no_org') });
         await local.run();
         expect((await sent(local)).find(o => o.n === 3)?.state).toBe('failed');
+    });
+
+    test('une action servie prête mais non acceptée sur cet appareil n’est jamais exécutée ; ensemble inconnu : rien', async () => {
+        const some = await setup({ accepted: [1, 2], concurrency: 1 });
+        await some.run();
+        expect(some.calls.map(c => c.call.n)).toEqual([1, 2]);
+        const none = await setup({ accepted: null });
+        expect(await none.run()).toEqual({ kind: 'none' });
+        expect(none.calls).toHaveLength(0);
+        expect(none.server.log).toHaveLength(0);
     });
 
     test('arrêt du plan (PC70) pendant une action : plus aucun démarrage, l’action en cours va à son terme', async () => {

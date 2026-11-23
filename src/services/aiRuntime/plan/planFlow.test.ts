@@ -4,6 +4,7 @@ import raw from '../../../../scripts/e2ee-vectors/action-plan.json';
 import { ToolManifest, type JsonObject, type JsonValue, type PlanContext } from '@/assets/utils/aiActionPlan';
 import { noResolver } from './planLabels';
 import { usePlanFlow } from './planFlow';
+import { memoryPlanLocalStore, type PlanLocalStore } from './planLocal';
 import type { PlanSessionDeps } from './planSession';
 
 interface V { sessionId: string; planId: string; ckHex: string; plan: JsonObject; planValue: string; planExecutors: ('device' | 'agent')[]; toolManifest: JsonValue; serverDigests: { plan: string | null; n: number | null; sha256Hex: string }[] }
@@ -24,13 +25,13 @@ function server(status: string, calls: { method: string; path: string; body: unk
     };
 }
 
-function flow(status: string, pending: typeof call | null = call, digestOverride?: Record<string, string>, auto?: string[], flags?: { name: string; sensitive?: boolean }[], allowed = true) {
+function flow(status: string, pending: typeof call | null = call, digestOverride?: Record<string, string>, auto?: string[], flags?: { name: string; sensitive?: boolean }[], allowed = true, local?: PlanLocalStore) {
     const calls: { method: string; path: string; body: unknown }[] = [];
     const session: PlanSessionDeps = {
         ck, orgId: 'o', sessionId: v.sessionId, context, knownLocalId: (_f, id) => id === SPACE.spaceId, resolver: noResolver, flags,
         api: { request: server(status, calls, digestOverride) },
     };
-    return { calls, f: usePlanFlow({ session, pendingCall: async () => pending, now: () => Date.UTC(2026, 10, 23), autoAccept: auto ? () => auto : undefined, autoAcceptAllowed: () => allowed }) };
+    return { calls, f: usePlanFlow({ session, pendingCall: async () => pending, now: () => Date.UTC(2026, 10, 23), autoAccept: auto ? () => auto : undefined, autoAcceptAllowed: () => allowed, local }) };
 }
 
 describe('usePlanFlow', () => {
@@ -43,6 +44,19 @@ describe('usePlanFlow', () => {
         expect(f.status.value).toBe('following');
         expect(calls.some(c => c.method === 'POST' && c.path.endsWith('/decision'))).toBe(true);
         expect(f.progress.value?.total).toBe(5);
+    });
+    test('l’ensemble accepté est conservé et relu après rechargement ; sans lui, rien n’est présumé accepté', async () => {
+        const local = memoryPlanLocalStore();
+        const a = flow('proposed', call, undefined, undefined, undefined, true, local);
+        await a.f.load();
+        await a.f.accept([1, 2, 3, 4, 5], 'graph');
+        expect(local.read(v.planId).accepted).toEqual([1, 2, 3, 4, 5]);
+        const b = flow('accepted', call, undefined, undefined, undefined, true, local);
+        await b.f.load();
+        expect(b.f.localAccepted.value).toEqual([1, 2, 3, 4, 5]);
+        const c = flow('accepted', call, undefined, undefined, undefined, true, memoryPlanLocalStore());
+        await c.f.load();
+        expect(c.f.localAccepted.value).toBeNull();
     });
     test('refus : plan terminé, décision reject', async () => {
         const { f, calls } = flow('proposed');

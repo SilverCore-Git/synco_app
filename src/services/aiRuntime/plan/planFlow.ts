@@ -10,6 +10,7 @@ import { acceptPlan, loadPlan, rejectInvalidPlan, rejectPlan, type LoadedPlan, t
 import { buildProgress, type Progress } from './planProgress';
 import type { PhaseOutcome } from '../actionPlan';
 import { stopPlan } from './planApi';
+import type { PlanLocalStore } from './planLocal';
 import { canAutoAccept } from './planAutoAccept';
 
 export type FlowStatus = 'idle' | 'loading' | 'proposed' | 'following' | 'invalid' | 'ended' | 'error';
@@ -24,6 +25,8 @@ export interface PlanFlowDeps {
     autoAccept?(): readonly string[];
     /** Politique d'org `tool_auto_accept` autorisée pour l'utilisateur ; absente ou `false` = jamais d'acceptation sans clic. */
     autoAcceptAllowed?(): boolean;
+    /** Conserve l'ensemble accepté sur cet appareil pour la reprise après rechargement. */
+    local?: PlanLocalStore;
 }
 
 const TERMINAL = new Set(['done', 'failed', 'interrupted', 'rejected', 'stopped', 'expired']);
@@ -83,6 +86,8 @@ export function usePlanFlow(deps: PlanFlowDeps) {
             loaded.value = result;
             view.value = result.view;
             status.value = result.view.status === 'proposed' ? 'proposed' : 'following';
+            // Rechargement d'un plan déjà accepté : l'ensemble validé ici est relu ; absent, l'appareil n'exécute rien.
+            if (status.value === 'following') localAccepted.value = deps.local?.read(result.view.planId).accepted ?? null;
             await maybeAutoAccept();
         } catch (e) {
             status.value = 'error';
@@ -121,6 +126,7 @@ export function usePlanFlow(deps: PlanFlowDeps) {
         try {
             view.value = await acceptPlan(deps.session, l, checked, from);
             localAccepted.value = view.value.actions.filter(a => a.state !== 'skipped').map(a => a.n);
+            deps.local?.saveAccepted(l.view.planId, localAccepted.value);
             status.value = 'following';
             return true;
         } catch (e) { fail(e); return false; } finally { busy.value = false; }
