@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { PlanGraph, type JsonObject } from '@/assets/utils/aiActionPlan';
 import type { OpenedPlan } from '../actionPlan';
 import { argLines, cleanText, noResolver, type NameResolver } from './planLabels';
-import { buildPlanModel, evaluateSelection, graphLinks, initialSelection, isLargePlan, isSmallPlan, layoutGraph, toggleAction, type PlanModel } from './planModel';
+import { buildPlanModel, countChecked, evaluateSelection, graphLinks, initialSelection, isLargePlan, isSmallPlan, layoutGraph, toggleAction, type PlanModel } from './planModel';
 
 interface A { kind: string; tool?: string; args: JsonObject; after?: number[]; group?: string; argsRefs?: JsonObject }
 function opened(actions: A[], groups?: { id: string; label: string }[], summary = 'Je supprime tout'): OpenedPlan {
@@ -90,6 +90,28 @@ describe('cible visible et lieu inconnu', () => {
         expect(isSmallPlan(unknown)).toBe(false);
         const known = buildPlanModel(opened([{ kind: 'folder.create', args: { spaceId: 'sp1', name: 'a' } }]), dir);
         expect(isSmallPlan(known)).toBe(true);
+    });
+});
+
+describe('groupes repliés (plus de 30 actions)', () => {
+    const big = () => buildPlanModel(opened([
+        ...Array.from({ length: 34 }, (_, i) => ({ kind: 'category.create', args: { name: `c${i}` }, group: 'g' })),
+        { kind: 'server.call', tool: 'delete_task', args: {}, group: 'g' },
+    ], [{ id: 'g', label: 'Groupe' }]), dir);
+    test('le compte des cochées d’un groupe replié est exact (décochées et cascade déduites) ; le sensible n’y est jamais', () => {
+        const m = big();
+        const layout = layoutGraph(m);
+        const g = layout.bands.find(b => b.id === 'g')!;
+        expect(g.collapsed).toBe(true);
+        expect(g.members).toHaveLength(34);
+        expect(g.members).not.toContain(35);
+        const s = initialSelection(m);
+        expect(s.checked.has(35)).toBe(false);
+        const r = evaluateSelection(m, s);
+        expect(countChecked(g.members, s.checked, r.ignoredBecause)).toBe(34);
+        const t = toggleAction(m, s, 3);
+        expect(countChecked(g.members, t.checked, evaluateSelection(m, t).ignoredBecause)).toBe(33);
+        expect(layout.bands.find(b => b.kind === 'sensitive')!.collapsed).toBe(false);
     });
 });
 

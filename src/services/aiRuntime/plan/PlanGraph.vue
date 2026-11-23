@@ -43,7 +43,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import PlanActionCard from './PlanActionCard.vue';
-import { graphLinks, layoutGraph, type PlanModel } from './planModel';
+import { countChecked, graphLinks, layoutGraph, type PlanModel } from './planModel';
 import type { ActionProgress } from './planProgress';
 
 const props = defineProps<{
@@ -66,7 +66,10 @@ const causeLabel = (n: number): string | undefined => {
     return c === undefined ? undefined : `« ${props.model.actions[c - 1]?.label ?? c} » est décochée`;
 };
 const bandSummary = (members: number[]): string => {
-    if (!props.progress) return `${members.length} actions, déroulez pour les voir.`;
+    if (!props.progress) {
+        const n = countChecked(members, props.checked, props.ignored);
+        return `${members.length} actions, ${n} action${n > 1 ? 's' : ''} cochée${n > 1 ? 's' : ''}. Déroulez pour les voir.`;
+    }
     const c = { done: 0, failed: 0, executing: 0 };
     for (const n of members) { const s = props.progress.get(n)?.state; if (s === 'done') c.done++; else if (s === 'failed') c.failed++; else if (s === 'executing') c.executing++; }
     return `${c.done} faite(s) · ${c.executing} en cours · ${c.failed} échec(s)`;

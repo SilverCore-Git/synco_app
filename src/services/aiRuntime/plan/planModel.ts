@@ -27,6 +27,10 @@ export interface PlanActionModel {
     place: { text: string; unknown: boolean } | null;
 }
 
+/** Actions de `members` réellement acceptées (cochées et non écartées par la cascade) : le compte d'un groupe replié. */
+export const countChecked = (members: readonly number[], checked: ReadonlySet<number>, ignored: ReadonlyMap<number, number>): number =>
+    members.filter(n => checked.has(n) && !ignored.has(n)).length;
+
 export interface PlanModel {
     planId: string;
     sessionId: string;
