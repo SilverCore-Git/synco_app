@@ -51,6 +51,12 @@ const sessionProviderOverride = ref<AiProviderId | null>(null);
 const activeSessionRegime = ref<SessionRegime | null>(null);
 /** La conversation ouverte a été enregistrée en clair (ancien format, sans enveloppe E2EE) — audit FC7. */
 const activeSessionLegacyPlain = ref(false);
+/**
+ * Conversation affichée mais illisible ici (clé manquante, déchiffrement en échec, format inconnu) : ce qui
+ * s'affiche est un message de remplacement, jamais l'historique. Toute écriture est refusée (`syncSession`),
+ * sinon la synchro écraserait l'historique réel.
+ */
+export const activeSessionReadOnly = ref(false);
 
 /** Convertit les événements du parseur en ce que consomment les appelants de chat() : du texte ou un `tool_call`. */
 function* toolStream(events: ParsedEvent[]): Generator<any> {
@@ -685,6 +691,7 @@ export const loadSession = async (id: string) => {
             activeSessionId.value = session.id;
 
             let loadedMessages = session.messages || [];
+            activeSessionReadOnly.value = false;
 
             // PC81 : l'ouverture d'une conversation runtime de l'org l'enregistre, sinon la synchro ne la délègue pas.
             if (session.regime === 'runtime') {
@@ -716,6 +723,7 @@ export const loadSession = async (id: string) => {
                     const key = await ensureAiSessionKey(orgId);
                     loadedMessages = await decryptGatewaySessionMessages(key, session.id, loadedMessages);
                 } catch (e) {
+                    activeSessionReadOnly.value = true;
                     if (e instanceof AiSessionKeyUnavailableError) {
                         loadedMessages = [{ role: 'system', content: '[🔒 Conversation chiffrée. Clé privée manquante.]' }];
                     } else {
@@ -736,9 +744,11 @@ export const loadSession = async (id: string) => {
                         loadedMessages = JSON.parse(decryptedStr);
                     } catch (e) {
                         console.error("Erreur de déchiffrement de la session AI", e);
+                        activeSessionReadOnly.value = true;
                         loadedMessages = [{ role: 'system', content: '[⚠️ Impossible de déchiffrer cette conversation.]' }];
                     }
                 } else {
+                    activeSessionReadOnly.value = true;
                     loadedMessages = [{ role: 'system', content: '[🔒 Conversation chiffrée. Clé privée manquante.]' }];
                 }
             }
@@ -780,6 +790,7 @@ export const newSession = () => {
     activeSessionId.value = null;
     activeSessionRegime.value = null;
     activeSessionLegacyPlain.value = false;
+    activeSessionReadOnly.value = false;
     sessionProviderOverride.value = null;
 };
 
@@ -889,8 +900,11 @@ watch([() => openedOrg.value?.id, () => aiPrefsReady.value], ([orgId, ready]) =>
 
 export const syncSession = async (lastPrompt: string) => {
     if (!openedOrg.value) return;
+    // Conversation illisible ici : ce qui s'affiche n'est pas l'historique, l'écrire l'écraserait.
+    if (activeSessionReadOnly.value) return;
     try {
-        let payloadMessages: any = aiSessionMessages.value;
+        let payloadMessages: unknown = aiSessionMessages.value;
+        let encryptedPayload = false;
 
         if (user.value?.publicKey && privateKey.value) {
             try {
@@ -906,10 +920,13 @@ export const syncSession = async (lastPrompt: string) => {
                     encryptedAesKey: encrypted.selfEncryptedAesKey || encrypted.encryptedAesKey,
                     iv: encrypted.iv
                 };
+                encryptedPayload = true;
             } catch (e) {
                 console.error("Erreur de chiffrement E2EE de la session AI", e);
             }
         }
+        // Refus d'écrire en clair : sans clé ou en cas d'échec de chiffrement, rien ne part vers le serveur.
+        if (!encryptedPayload) return;
 
         if (!activeSessionId.value) {
             // Create session
