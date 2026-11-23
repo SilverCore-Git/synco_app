@@ -106,11 +106,12 @@ export interface SwitchHistorySource {
     /** `AiSessionKey` de l'org (`ai:<orgId>`), pour relire l'ancien format `gateway-aes-gcm-v1`. */
     gatewayKey(orgId: string): Promise<CryptoKey>;
     /**
-     * Historique AFFICHÉ sur cet appareil (format d'affichage d'OrgAI), `null` si la conversation n'y
-     * est pas ouverte. Ne sert que si l'API ne rend aucun message (blob `isE2EE` du régime `client`,
-     * que `GET /ai/sessions/:id` rend vide).
+     * Ouvre le blob `isE2EE` du régime `client` (enveloppe RSA + AES-GCM auto-chiffrée, rendue telle quelle
+     * par `GET /ai/sessions/:id`) avec la clé privée de l'utilisateur et rend l'historique au format
+     * d'affichage. Lève si la clé est absente ou si l'enveloppe est illisible : la bascule s'arrête alors
+     * (`history_unreadable`), elle n'envoie jamais un historique vide à la place.
      */
-    displayedMessages(orgId: string, sessionId: string): readonly unknown[] | null;
+    openClientBlob(blob: Readonly<Record<string, unknown>>): Promise<unknown>;
 }
 
 // ---------------------------------------------------------------------------
@@ -466,13 +467,19 @@ async function plainHistory(
     snap: SessionSnapshot,
     nowIso: string,
 ): Promise<PlainStoredMessage[]> {
-    const raw = Array.isArray(snap.messages) ? snap.messages : null;
-    if (!raw) throw unreadable();
-    if (raw.length === 0) {
-        // Blob `isE2EE` du régime `client` : l'API le rend vide, seul l'affichage de cet appareil le porte.
-        const shown = source.displayedMessages(orgId, sessionId);
-        return shown?.length ? displayToStoredMessages(shown, nowIso) : [];
+    let raw: readonly unknown[] | null = Array.isArray(snap.messages) ? snap.messages : null;
+    if (!raw && isRec(snap.messages) && snap.messages.isE2EE === true) {
+        // Blob `isE2EE` du régime `client` : ouvert avec la clé privée ; illisible = arrêt (jamais un historique vide).
+        let opened: unknown;
+        try {
+            opened = await source.openClientBlob(snap.messages);
+        } catch {
+            throw unreadable();
+        }
+        raw = Array.isArray(opened) ? opened : null;
     }
+    if (!raw) throw unreadable();
+    if (raw.length === 0) return [];
     const encrypted = raw.some(m => isRec(m) && (isGcm1(m.content) || isGcm1(m.thinking) || isGcm1(m.toolResult)
         || (Array.isArray(m.toolCalls) && m.toolCalls.some(tc => isRec(tc) && isGcm1(tc.arguments)))));
     if (raw.every(isStoredShape)) {

@@ -1,19 +1,21 @@
 /**
  * Branchement du constructeur de corps de la bascule (L10b) sur l'écran de L11 : sources réelles de
- * l'app (clé `AiSessionKey` de l'ancien format, historique affiché de la conversation ouverte).
+ * l'app (clé `AiSessionKey` de l'ancien format, ouverture du blob `isE2EE` du régime client).
  * Aucune cryptographie ici : tout est dans `@/services/aiRuntime/switchBody`.
  */
-import { openedOrg } from '@/assets/var';
+import { decryptFromPeer, privateKey } from '@/assets/utils/crypto';
 import { createSwitchBodyBuilder, type SwitchHistorySource } from '@/services/aiRuntime';
 import { ensureAiSessionKey } from '@/services/AiSessionKeyService';
-import { activeSessionId, aiSessionMessages } from '@/services/AIService';
 import { canSwitchExistingConversation, runtimeDeps, setSwitchBodyBuilder } from '@/services/aiRuntimeUi';
 
 const appHistorySource: SwitchHistorySource = {
     gatewayKey: orgId => ensureAiSessionKey(orgId),
-    displayedMessages(orgId, sessionId) {
-        if (openedOrg.value?.id !== orgId || activeSessionId.value !== sessionId) return null;
-        return aiSessionMessages.value as readonly unknown[];
+    async openClientBlob(blob) {
+        const { ciphertext, encryptedAesKey, iv } = blob;
+        if (!privateKey.value || typeof ciphertext !== 'string' || typeof encryptedAesKey !== 'string' || typeof iv !== 'string') {
+            throw new Error('blob_unreadable');
+        }
+        return JSON.parse(await decryptFromPeer(ciphertext, encryptedAesKey, iv, privateKey.value)) as unknown;
     },
 };
 

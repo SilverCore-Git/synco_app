@@ -75,7 +75,8 @@ interface Bench {
     ctx: DelegationContext;
     session: Record<string, unknown>;
     served: Record<string, unknown> | null;
-    displayed: unknown[] | null;
+    /** Ce que `openClientBlob` rend ; `Error` = enveloppe illisible. */
+    blobOpens: unknown;
     source: SwitchHistorySource;
 }
 
@@ -90,10 +91,10 @@ async function bench(): Promise<Bench> {
         h, delegationId: summary.delegationId, dk, ctx,
         session: { id: S, rev: 3, encryptionScheme: null, regime: 'server', title: 'Titre en clair', messages: [] },
         served: null,
-        displayed: null,
+        blobOpens: new Error('illisible'),
         source: {
             gatewayKey: async () => importAes(AK_VEC),
-            displayedMessages: () => b.displayed,
+            openClientBlob: async () => { if (b.blobOpens instanceof Error) throw b.blobOpens; return b.blobOpens; },
         },
     };
     h.override = (method, path) => {
@@ -364,11 +365,24 @@ describe('format d\'affichage (régime client) → StoredMessage[]', () => {
         expect(out[3]!.usage).toEqual({ promptTokens: 1, completionTokens: 2, totalTokens: 3, reasoningTokens: 0 });
     });
 
-    test('API vide (blob isE2EE) : l\'historique affiché de cet appareil est repris', async () => {
+    test('blob isE2EE rendu par l\'API : ouvert avec la clé privée, historique repris', async () => {
         const b = await bench();
-        b.displayed = [{ role: 'user', content: 'Q-affichée' }, { role: 'assistant', content: 'R-affichée' }];
+        b.session.messages = { isE2EE: true, ciphertext: 'c', encryptedAesKey: 'k', iv: 'i' };
+        b.blobOpens = [{ role: 'user', content: 'Q-affichée' }, { role: 'assistant', content: 'R-affichée' }];
         const body = await build(b);
         const back = await decryptConversationHistory(await runtimeOpensCk(b, body), S, body.messages, true);
         expect(back.map(m => m.content)).toEqual(['Q-affichée', 'R-affichée']);
+    });
+
+    test('blob isE2EE illisible, autre objet inconnu ou contenu non tableau : history_unreadable, jamais un historique vide', async () => {
+        for (const messages of [{ isE2EE: true, ciphertext: 'c', encryptedAesKey: 'k', iv: 'i' }, { autre: 1 }]) {
+            const b = await bench();
+            b.session.messages = messages; // blobOpens = Error
+            expect(await code(build(b))).toBe('history_unreadable');
+        }
+        const b = await bench();
+        b.session.messages = { isE2EE: true, ciphertext: 'c', encryptedAesKey: 'k', iv: 'i' };
+        b.blobOpens = { pas: 'un tableau' };
+        expect(await code(build(b))).toBe('history_unreadable');
     });
 });
