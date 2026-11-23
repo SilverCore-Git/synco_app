@@ -101,6 +101,17 @@ describe("annonce avant l'enregistrement", () => {
     });
 });
 
+describe('annonce de « Toujours accepter »', () => {
+    test('vers « Personne » : aucune personne comptée (réglage local), la conséquence seulement', () => {
+        const a = policyAnnouncement(change({ feature: 'tool_auto_accept', nextMode: 'none', enabledCount: 40 }));
+        expect(a.affected).toBeNull();
+        expect(a.text).not.toContain('40');
+        expect(a.text).toContain('cessent de s\'appliquer');
+        const b = policyAnnouncement(change({ feature: 'tool_auto_accept', nextMode: 'list', enabledCount: 40, addedCount: 3 }));
+        expect(b.text).not.toContain('40');
+    });
+});
+
 describe('enregistrement d\'un changement', () => {
     const ok = () => ({ status: 200, body: { revoked: 0, removed: 0, added: 0 } });
     test('tout le monde → liste : UN seul PUT { mode, userIds }, jamais « liste vide » puis ajouts', async () => {

@@ -237,6 +237,17 @@ export function policyAnnouncement(c: PendingPolicyChange): PolicyAnnouncement {
 
     if (c.currentMode === 'none') return { affected: 0, text: null };
 
+    // « Toujours accepter » est un réglage LOCAL de l'app : le serveur ne sait pas qui l'a utilisé. Aucun nombre
+    // d'utilisateurs n'est annoncé (`enabledCount` suit « autorisé »), seulement la conséquence.
+    if (c.feature === 'tool_auto_accept' && (c.nextMode === 'none' || (c.nextMode === 'list' && c.currentMode === 'all'))) {
+        return {
+            affected: null,
+            text: c.nextMode === 'none'
+                ? "Les « Toujours accepter » déjà enregistrés par les membres cessent de s'appliquer : chaque action demandera de nouveau une validation."
+                : "Les personnes qui ne sont pas dans la liste perdent leurs « Toujours accepter » : chaque action leur demandera de nouveau une validation.",
+        };
+    }
+
     if (c.nextMode === 'none' || (c.nextMode === 'list' && c.currentMode === 'all')) {
         const n = c.enabledCount;
         if (n === 0) return { affected: 0, text: null };

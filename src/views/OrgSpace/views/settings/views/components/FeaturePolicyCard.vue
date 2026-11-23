@@ -34,11 +34,17 @@
                     <button v-if="!p.removed" type="button" class="chip-x" :aria-label="`Retirer ${personOf(p.userId).name}`" :disabled="saving" @click="removeChip(p.userId)"><i class="bi bi-x-lg"></i></button>
                     <button v-else type="button" class="chip-x" :aria-label="`Garder ${personOf(p.userId).name}`" :disabled="saving" @click="undoRemove(p.userId)"><i class="bi bi-arrow-counterclockwise"></i></button>
                 </span>
-                <button v-if="hiddenCount > 0 || listNext" type="button" class="chip chip-more" :disabled="loadingList" @click="showAll">
+                <button v-if="hiddenCount > 0 || listNext" type="button" class="chip chip-more" @click="toggleExpanded">
                     {{ expanded ? 'Voir moins' : `+${hiddenCount}${listNext ? '…' : ''}` }}
                 </button>
                 <MemberPicker :exclude="excluded" :disabled="saving" @pick="addPerson" />
             </div>
+            <div v-if="expanded" class="mt-3 flex flex-wrap items-center gap-3">
+                <input v-model="memberQuery" type="search" class="search" placeholder="Chercher dans la liste" autocomplete="off" :aria-label="`Chercher dans la liste : ${meta.title}`" />
+                <button v-if="moreAvailable" type="button" class="chip chip-more" :disabled="loadingList" @click="loadMore">Voir la suite</button>
+                <span v-if="loadingList" class="text-xs text-(--text2)">Chargement…</span>
+            </div>
+            <p v-if="expanded && memberQuery.trim() && !searchedChips.length && !loadingList" class="text-xs text-(--text2) mt-2">Personne ne correspond dans la liste.</p>
             <p v-if="!allChips.length" class="text-xs text-(--text2) mt-3">Aucune personne choisie : c'est équivalent à « Personne ».</p>
         </div>
 
@@ -107,10 +113,21 @@ const error = ref('');
 
 const CHIPS_FOLDED = 5;
 
+/** Usage connu de chaque personne vue (page de la liste ou résultat de recherche) : alimente l'annonce. */
+const known = ref<Map<string, boolean>>(new Map());
+const memberQuery = ref('');
+const searched = ref<PolicyMember[]>([]);
+const searchNext = ref<string | null>(null);
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+let searchSeq = 0;
+
+const remember = (members: PolicyMember[]) => { for (const m of members) known.value.set(m.userId, m.enabled); };
+
 const loadPage = async (after?: string) => {
     loadingList.value = true;
     try {
         const page = await listPolicyMembers(props.api, props.orgId, props.summary.feature, { after, limit: 100 });
+        remember(page.members);
         loaded.value = after ? [...loaded.value, ...page.members] : page.members;
         listNext.value = page.next;
     } catch {
@@ -120,7 +137,31 @@ const loadPage = async (after?: string) => {
     }
 };
 
+/** Recherche CÔTÉ SERVEUR (`?q=`) dans la liste : jamais la liste entière chargée pour filtrer. */
+const runSearch = async (after?: string) => {
+    const q = memberQuery.value.trim();
+    const seq = ++searchSeq;
+    if (!q) { searched.value = []; searchNext.value = null; return; }
+    loadingList.value = true;
+    try {
+        const page = await listPolicyMembers(props.api, props.orgId, props.summary.feature, { q, after, limit: 20 });
+        if (seq !== searchSeq) return;
+        remember(page.members);
+        searched.value = after ? [...searched.value, ...page.members] : page.members;
+        searchNext.value = page.next;
+    } catch {
+        if (seq === searchSeq) error.value = 'La recherche dans la liste a échoué.';
+    } finally {
+        if (seq === searchSeq) loadingList.value = false;
+    }
+};
+watch(memberQuery, () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { void runSearch(); }, 300); });
+
 const reset = () => {
+    memberQuery.value = '';
+    searched.value = [];
+    searchNext.value = null;
+    known.value = new Map();
     draftMode.value = props.summary.mode;
     added.value = [];
     removed.value = new Set();
@@ -137,14 +178,19 @@ const allChips = computed(() => [
     ...loaded.value.map(m => ({ userId: m.userId, removed: removed.value.has(m.userId) })),
     ...added.value.filter(id => !loaded.value.some(m => m.userId === id)).map(userId => ({ userId, removed: false })),
 ]);
-const visibleChips = computed(() => expanded.value ? allChips.value : allChips.value.slice(0, CHIPS_FOLDED));
+const searchedChips = computed(() => searched.value.map(m => ({ userId: m.userId, removed: removed.value.has(m.userId) })));
+const visibleChips = computed(() => {
+    if (!expanded.value) return allChips.value.slice(0, CHIPS_FOLDED);
+    return memberQuery.value.trim() ? searchedChips.value : allChips.value;
+});
+const moreAvailable = computed(() => (memberQuery.value.trim() ? !!searchNext.value : !!listNext.value));
+const loadMore = () => { if (memberQuery.value.trim()) void runSearch(searchNext.value ?? undefined); else if (listNext.value) void loadPage(listNext.value); };
 const hiddenCount = computed(() => Math.max(0, allChips.value.length - CHIPS_FOLDED));
 const excluded = computed(() => new Set(allChips.value.filter(c => !c.removed).map(c => c.userId)));
 
-const showAll = async () => {
-    if (expanded.value) { expanded.value = false; return; }
-    expanded.value = true;
-    while (listNext.value && !loadingList.value) await loadPage(listNext.value);
+const toggleExpanded = () => {
+    expanded.value = !expanded.value;
+    if (!expanded.value) memberQuery.value = '';
 };
 
 const addPerson = (userId: string) => {
@@ -169,7 +215,7 @@ const announcement = computed<PolicyAnnouncement>(() => policyAnnouncement({
     currentMode: props.summary.mode,
     nextMode: draftMode.value,
     enabledCount: props.summary.enabledCount,
-    removed: loaded.value.filter(m => removed.value.has(m.userId)).map(m => ({ name: personOf(m.userId).name, enabled: m.enabled })),
+    removed: [...removed.value].map(id => ({ name: personOf(id).name, enabled: known.value.get(id) ?? false })),
     addedCount: added.value.length,
 }));
 
@@ -224,6 +270,8 @@ defineExpose({ save, reset, dirty });
     background: var(--bg); border: 1px solid var(--border-color);
 }
 .chip-removed { color: #dc2626; border-color: rgb(220 38 38 / 0.4); background: rgb(220 38 38 / 0.07); }
+.search { padding: 0.4rem 0.8rem; border-radius: 999px; font-size: 0.8rem; background: var(--bg); border: 1px solid var(--border-color); color: var(--text); outline: none; min-width: 12rem; }
+.search:focus { border-color: var(--primary); }
 .chip-more { padding-left: 0.8rem; padding-right: 0.8rem; color: var(--primary); font-weight: 700; }
 .chip-x { color: var(--text2); font-size: 0.7rem; padding: 0.15rem; border-radius: 999px; }
 .chip-x:hover:not(:disabled) { color: var(--text); background: color-mix(in srgb, var(--text) 10%, transparent); }
