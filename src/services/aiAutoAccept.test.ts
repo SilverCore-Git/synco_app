@@ -11,6 +11,16 @@ describe('« Toujours accepter » (PC42)', () => {
         expect(parseAutoAccept(['thread.create', 'server.call:delete_file', 'x y', 42, 'thread.create'])).toEqual(['thread.create']);
     });
 
+    test('liste blanche : un nom sensible hors du motif delete_* est refusé, un drapeau du manifeste l\'emporte', () => {
+        for (const key of ['server.call:remove_task', 'server.call:send_email', 'server.call:purge_space', 'server.call:list_members', 'server.call:inconnu', 'file.delete', 'thread.create:x']) {
+            expect(addAutoAccept([], key)).toBe(false);
+            expect(isSensitiveAutoAcceptKey(key)).toBe(true);
+        }
+        expect(parseAutoAccept(['server.call:remove_task', 'server.call:create_task'])).toEqual(['server.call:create_task']);
+        expect(addAutoAccept([], 'server.call:create_task')).toEqual(['server.call:create_task']);
+        expect(addAutoAccept([], 'server.call:create_task', [{ name: 'create_task', sensitive: true }])).toBe(false);
+    });
+
     test('ajout, doublon et retrait', () => {
         expect(addAutoAccept(['thread.create'], 'folder.create')).toEqual(['thread.create', 'folder.create']);
         expect(addAutoAccept(['thread.create'], 'thread.create')).toEqual(['thread.create']);
