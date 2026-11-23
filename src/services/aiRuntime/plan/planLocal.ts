@@ -53,3 +53,19 @@ export function memoryPlanLocalStore(): PlanLocalStore {
     const m = new Map<string, string>();
     return createPlanLocalStore({ getItem: k => m.get(k) ?? null, setItem: (k, v) => { m.set(k, v); } }, 'o', 's');
 }
+
+const DEVICE_KEY = 'synco_ai_device_id';
+
+/**
+ * Identifiant d'appareil stable (opaque pour l'API, 00 §3.2) : un rechargement reprend le même claim au lieu
+ * de se prendre pour « un autre appareil ». Stockage indisponible : identifiant propre à l'ouverture.
+ */
+export function stableDeviceId(storage: KeyValueStorage | null, fresh: () => string = () => crypto.randomUUID()): string {
+    try {
+        const known = storage?.getItem(DEVICE_KEY);
+        if (known && /^[0-9a-zA-Z-]{8,64}$/.test(known)) return known;
+        const id = fresh();
+        storage?.setItem(DEVICE_KEY, id);
+        return id;
+    } catch { return fresh(); }
+}

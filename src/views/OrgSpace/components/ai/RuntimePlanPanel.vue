@@ -94,7 +94,7 @@ import PlanGraphWindow from '@/services/aiRuntime/plan/PlanGraphWindow.vue';
 import PlanSummary from '@/services/aiRuntime/plan/PlanSummary.vue';
 import { loadPlanEnv, orgKnownLocalId, orgResolver } from '@/services/aiRuntime/plan/planEnv';
 import { autoAcceptAfterPolicy, policyAllows } from '@/services/aiRuntime/plan/planAutoAccept';
-import { createPlanLocalStore } from '@/services/aiRuntime/plan/planLocal';
+import { createPlanLocalStore, stableDeviceId } from '@/services/aiRuntime/plan/planLocal';
 import { usePlanFlow, type PlanFlow } from '@/services/aiRuntime/plan/planFlow';
 import { dockLabel, gauge } from '@/services/aiRuntime/plan/planProgress';
 import type { PendingPlanCall } from '@/services/aiRuntime/actionPlan';
@@ -120,9 +120,9 @@ const asPendingCall = (raw: unknown): PendingPlanCall | null => {
     return { id: r.id, name: r.name, args: r.args, planId: typeof r.planId === 'string' ? r.planId : undefined };
 };
 
-// Un identifiant d'appareil par ouverture de la carte (opaque pour l'API, 00 §3.2) : un rechargement
-// attend l'expiration du claim précédent au lieu de reprendre en aveugle.
-const deviceId = crypto.randomUUID();
+// Identifiant stable par appareil (opaque pour l'API, 00 §3.2) : après un rechargement, le claim propre à cet
+// appareil est reconnu (jamais « votre autre appareil » pour soi-même) ; un autre appareil a un autre identifiant.
+const deviceId = stableDeviceId(typeof localStorage === 'undefined' ? null : localStorage);
 let unmounted = false;
 let loop: ReturnType<typeof createRunnerLoop> | null = null;
 const localStore = () => createPlanLocalStore(typeof localStorage === 'undefined' ? null : localStorage, props.orgId, props.sessionId);
