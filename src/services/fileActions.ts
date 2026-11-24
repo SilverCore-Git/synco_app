@@ -3,9 +3,12 @@
 // routes, les mêmes permissions serveur et le même chiffrement E2EE.
 
 import sfetch from '@/assets/utils/sfetch';
-import { uploadFiles } from '@/assets/uploadFile';
+import { replaceFileContent, uploadFiles } from '@/assets/uploadFile';
+import { fetchDecryptedFile, fetchFileMetadata, plainSizeOf } from '@/assets/utils/downloadFile';
 import type { Folder, StoredFile } from '@/types/types';
 import { buildFileName, extensionOf, findTextFormat, SUPPORTED_EXTENSIONS_LABEL } from '@/assets/utils/textFileFormats';
+import { decodeUtf8Clipped, isTextFile, MAX_READ_SOURCE_BYTES, MAX_TEXT_BYTES, TextFileError } from './fileTextCodec';
+
 
 export const createFolderRequest = async (
     spaceId: string,
@@ -87,3 +90,46 @@ export const createTextFile = async (options: CreateTextFileOptions): Promise<St
     return stored as StoredFile;
 
 };
+
+
+// ---------------------------------------------------------------------------
+// Lecture et remplacement du contenu d'un fichier texte (outils `read_file`, `update_text_file`)
+// ---------------------------------------------------------------------------
+
+export interface ReadTextFileResult { id: string; name: string; spaceId?: string; version: string; content: string; truncated: boolean }
+
+/**
+ * Lit un fichier texte : téléchargé et déchiffré sur l'appareil, le serveur ne voit jamais le clair.
+ * `version` (identifiant du contenu stocké) est à repasser comme `baseVersion` à `updateTextFile`.
+ */
+export async function readTextFile(fileId: string, maxBytes = MAX_TEXT_BYTES): Promise<ReadTextFileResult> {
+    const meta = await fetchFileMetadata(fileId);
+    if (!isTextFile(meta.originalName, meta.mimeType)) throw new TextFileError('not_text');
+    if (plainSizeOf(meta) > MAX_READ_SOURCE_BYTES) throw new TextFileError('too_large');
+    const { buffer, metadata } = await fetchDecryptedFile(fileId);
+    const { text, truncated } = decodeUtf8Clipped(new Uint8Array(buffer), Math.max(1, Math.min(maxBytes, MAX_TEXT_BYTES)));
+    return {
+        id: metadata.id, name: metadata.originalName, ...(metadata.workspaceId ? { spaceId: metadata.workspaceId } : {}),
+        version: metadata.blobId, content: text, truncated,
+    };
+}
+
+/**
+ * Remplace le contenu d'un fichier texte d'espace, avec les mêmes droits et le même chiffrement que
+ * l'éditeur (`replaceFileContent`). Refuse (`file_changed`) si le contenu stocké n'est plus celui lu :
+ * rien n'est écrit. Rend `{ id, spaceId }`.
+ */
+export async function updateTextFile(fileId: string, content: string, baseVersion: string): Promise<{ id: string; spaceId: string }> {
+    if (!baseVersion || new TextEncoder().encode(content).length > MAX_TEXT_BYTES) throw new TextFileError('invalid_args');
+    const meta = await fetchFileMetadata(fileId);
+    if (!meta.workspaceId) throw new TextFileError('not_space_file');
+    if (!isTextFile(meta.originalName, meta.mimeType)) throw new TextFileError('not_text');
+    if (meta.blobId !== baseVersion) throw new TextFileError('file_changed');
+    await replaceFileContent(
+        fileId,
+        new Blob([content], { type: meta.mimeType }),
+        meta.originalName,
+        { workspaceId: meta.workspaceId, dmPeerId: meta.dmPeerId, threadId: meta.threadId },
+    );
+    return { id: fileId, spaceId: meta.workspaceId };
+}
