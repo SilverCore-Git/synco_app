@@ -1618,3 +1618,15 @@ Recette Firefox (carte, visionneuse, téléchargement, enregistrement, hors lign
 Brancher `planKinds` dans `deviceRunner` quand un lot ajoute un kind.
 
 **Corrections L15-0 après revue** : enveloppe `<untrusted>` et bloc de prompt dans l'agent navigateur (`services/agent/untrusted.ts`), rechargement des outils au changement d'org dans les réglages runtime. `bun test src/services src/components` : 362 réussis.
+
+---
+
+## 📅 **2026-11-24 - Lot L15c (app) : rendus espaces et salons**
+
+**Statut** : ✅ **TERMINÉ**
+
+### **Changements**
+`components/ai/results/SpacesResult.vue` et `ThreadsResult.vue` (modèles purs `spacesResultModel.ts`, `threadsResultModel.ts`) : espace avec ses salons, statistiques, catégories, salon, invitations (code complet seulement à la création), effectifs d'accès, messages de confirmation. Texte de tiers jamais rendu en HTML.
+
+### **Vérifications**
+`vue-tsc` par node : 0 erreur (détection vérifiée). `bun test src/services src/components` : 369 réussis (362 avant).
