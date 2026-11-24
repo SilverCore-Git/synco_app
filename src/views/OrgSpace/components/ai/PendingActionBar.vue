@@ -78,6 +78,7 @@ import { openedOrg } from '@/assets/var';
 import { useCalendarAccess } from '@/composables/useCalendarAccess';
 import { summarizeTool, type SummaryContext } from '@/components/ai/summaries/summaryRegistry';
 import { summaryModules } from '@/components/ai/summaries/summaryModules';
+import { orgResolver } from '@/services/aiRuntime/plan/planEnv';
 
 const props = defineProps<{ tool: ToolStep }>();
 const emit = defineEmits<{
@@ -109,8 +110,11 @@ const calendarAccess = useCalendarAccess();
 if (props.tool.name === 'respond_calendar_access' && openedOrg.value) void calendarAccess.fetchGrants(openedOrg.value.id);
 
 // Contexte local des résumés de domaine : noms de l'annuaire de l'org, partages d'agenda déjà chargés.
+const nameResolver = orgResolver(() => openedOrg.value ?? null);
 const summaryContext: SummaryContext = {
     userName: id => openedOrg.value?.members?.find(m => m.userId === id)?.user?.name ?? null,
+    spaceName: id => nameResolver.resolve('space', id),
+    threadName: id => nameResolver.resolve('thread', id),
     grant: id => {
         const owned = calendarAccess.asOwner.value.find(g => g.id === id);
         if (owned) return { who: owned.grantee?.name ?? 'Membre', level: owned.level === 'WRITE' ? 'modification' : 'lecture seule', direction: 'owner' };

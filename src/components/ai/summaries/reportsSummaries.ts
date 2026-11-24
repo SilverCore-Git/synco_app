@@ -16,7 +16,7 @@ const PERMISSIONS: Record<string, string> = {
  * Noms d'espace et de salon : l'annuaire local les connaît, mais `SummaryContext` (fichier commun) ne les expose pas encore.
  * Crochets optionnels, en attendant qu'il le fasse ; sans eux, jamais d'identifiant brut affiché.
  */
-type NamedContext = SummaryContext & { spaceName?(id: string): string | null; threadName?(id: string): string | null };
+type NamedContext = SummaryContext;
 const spaceLabel = (ctx: SummaryContext, id: unknown): string => {
     const n = typeof id === 'string' ? (ctx as NamedContext).spaceName?.(id) : null;
     return n ? `l’espace ${label(n)}` : 'un espace (nom indisponible)';

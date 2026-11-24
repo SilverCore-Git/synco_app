@@ -39,7 +39,7 @@ const emit = defineEmits<{ (e: 'toggle', n: number): void }>();
 const lines = computed(() => argLines(props.action.args, props.resolver, props.action.argsRefs));
 // Résumé du domaine (URL complète, nom du membre, niveau…), comme sur les cartes de confirmation (L15b).
 const summary = computed(() => props.action.tool
-    ? summarizeTool(props.action.tool, props.action.args, { userName: id => props.resolver.resolve('user', id) }, summaryModules)
+    ? summarizeTool(props.action.tool, props.action.args, { userName: id => props.resolver.resolve('user', id), spaceName: id => props.resolver.resolve('space', id), threadName: id => props.resolver.resolve('thread', id) }, summaryModules)
     : '');
 const name = (n: number) => `« ${props.model.actions[n - 1]?.label ?? n} »`;
 const needs = computed(() => props.action.after.map(name));
