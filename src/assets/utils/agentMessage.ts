@@ -18,8 +18,10 @@ import { fromB64u, hkdf32, isValidId, sha256, toB64u, toHex } from './runtimeCer
 const enc = new TextEncoder();
 
 export class AgentMessageFormatError extends Error {
-    constructor(readonly code: 'invalid_format' | 'invalid_input') {
+    readonly code: 'invalid_format' | 'invalid_input';
+    constructor(code: 'invalid_format' | 'invalid_input') {
         super(code);
+        this.code = code;
     }
 }
 

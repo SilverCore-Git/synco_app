@@ -1,7 +1,9 @@
 import type { Message } from '@/types/types';
 import { decryptMessageWithContentKey } from '@/assets/utils/crypto';
 import { undecryptableMessageText } from '@/assets/utils/undecryptable';
-import { decryptThreadMessageV2, findReplayedMessages, isAuthenticatedIv } from '@/assets/utils/messageAuth';
+import { clientMsgIdOf, decryptThreadMessageV2, findReplayedMessages, isAuthenticatedIv, type AgentMark } from '@/assets/utils/messageAuth';
+import { findReplayedDeclarations } from '@/assets/utils/agentMessage';
+import { openedOrg } from '@/assets/var';
 
 /**
  * Déchiffrement des messages d'une conversation au format « thread »
@@ -48,10 +50,14 @@ const decryptContent = async (
     vectorInit: string,
     key: CryptoKey,
     replayed = false
-): Promise<{ text: string; authState: NonNullable<Message['authState']> }> => {
+): Promise<{ text: string; authState: NonNullable<Message['authState']>; agentMark?: AgentMark }> => {
     if (isAuthenticatedIv(vectorInit) && msg.senderId) {
-        const { text, auth } = await decryptThreadMessageV2(msg.content, vectorInit, key, { threadId: msg.threadId, senderId: msg.senderId }, replayed);
-        return auth === 'invalid' ? { text: UNVERIFIED_SENDER_TEXT, authState: 'invalid' } : { text, authState: auth };
+        // Message de l'agent (m3, 12 §4.3) : la déclaration du texte se contrôle contre l'org du salon ouvert.
+        const orgId = openedOrg.value?.id;
+        const reader = orgId ? { orgId, messageId: msg.id, replyToId: msg.replyToId ?? null } : undefined;
+        const { text, auth, agent } = await decryptThreadMessageV2(msg.content, vectorInit, key, { threadId: msg.threadId, senderId: msg.senderId, reader }, replayed);
+        if (auth === 'invalid') return { text: UNVERIFIED_SENDER_TEXT, authState: 'invalid' };
+        return agent ? { text, authState: auth, agentMark: agent } : { text, authState: auth };
     }
     return { text: await decryptMessageWithContentKey(msg.content, vectorInit, key), authState: 'legacy' };
 };
@@ -72,11 +78,11 @@ const decryptSingleMessage = async (msg: Message | null | undefined, key: Crypto
             return { ...msg, content: undecryptableMessageText() };
         }
 
-        const { text: clearText, authState } = await decryptContent(msg, vectorInit, key, replayed);
+        const { text: clearText, authState, agentMark } = await decryptContent(msg, vectorInit, key, replayed);
 
         const formattedReactions = msg.reactions ? normalizeReactions(msg.reactions) : {};
 
-        return { ...msg, content: clearText, authState, reactions: formattedReactions };
+        return { ...msg, content: clearText, authState, reactions: formattedReactions, ...(agentMark ? { agentMark } : {}) };
 
     }
     catch (cryptoErr) {
@@ -122,10 +128,29 @@ export const decryptMessages = async (msgs: Message[], key: CryptoKey | null): P
 
     }));
 
+    markReplayedDeclarations(decryptedMessages);
+
     return decryptedMessages.sort((a, b) => {
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
 
+};
+
+/**
+ * 12 §10.7, étape 8 : une même déclaration `(planId, n)` sur un AUTRE `clientMsgId` du salon (fenêtre chargée) → le
+ * plus récent est `text_unverified` (`replayed`), affiché avec l'avertissement, jamais masqué.
+ */
+const markReplayedDeclarations = (msgs: Message[]): void => {
+    const candidates = msgs.flatMap(m => {
+        const mark = m.agentMark;
+        const cid = clientMsgIdOf(m.iv);
+        return mark?.author === 'rt1' && mark.action && cid ? [{ id: m.id, clientMsgId: cid, createdAt: m.createdAt, action: mark.action }] : [];
+    });
+    if (candidates.length < 2) return;
+    const replayed = findReplayedDeclarations(candidates);
+    for (const m of msgs) {
+        if (replayed.has(m.id) && m.agentMark?.author === 'rt1') m.agentMark = { ...m.agentMark, text: 'text_unverified', reason: 'replayed' };
+    }
 };
 
 /**
@@ -139,11 +164,12 @@ export const decryptEditedMessage = async (editedMsg: Message, key: CryptoKey | 
 
     let decryptedContent = editedMsg.content;
     let authState: Message['authState'];
+    let agentMark: AgentMark | undefined;
     if (editedMsg.content && editedMsg.content.trim() !== "" && key)
     {
         try {
             const vectorInit = editedMsg.iv && editedMsg.iv.trim() !== "" ? editedMsg.iv : editedMsg.nonce;
-            ({ text: decryptedContent, authState } = await decryptContent(editedMsg, vectorInit, key));
+            ({ text: decryptedContent, authState, agentMark } = await decryptContent(editedMsg, vectorInit, key));
         } catch (err) {
             decryptedContent = "🔒 Échec du déchiffrement lors de l'édition.";
         }
@@ -158,6 +184,7 @@ export const decryptEditedMessage = async (editedMsg: Message, key: CryptoKey | 
         ...editedMsg,
         content: decryptedContent,
         authState,
+        agentMark,
         reactions: formattedReactions,
         replyMessage: previous?.replyMessage ?? editedMsg.replyMessage,
     };
