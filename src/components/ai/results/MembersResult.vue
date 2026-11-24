@@ -19,8 +19,6 @@
             <i class="bi bi-check2-circle text-(--primary) mr-1"></i>{{ summary }}
         </p>
 
-        <p v-if="inviteUrl" class="text-xs text-(--text2) break-all select-all bg-black/20 border border-(--text)/10 rounded-xl px-3 py-2">{{ inviteUrl }}</p>
-
     </div>
 
 </template>
@@ -31,11 +29,11 @@ import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { ToolStep } from '@/views/OrgSpace/components/ai/agentTypes';
 import EntityRow from '@/views/OrgSpace/components/ai/EntityRow.vue';
-import { inviteUrlOf, membersRows, membersSummary, type MemberRow } from './membersResultRows';
+import { membersRows, membersSummary, type MemberRow } from './membersResultRows';
 
 /**
  * Rendu des résultats du domaine `members` (L15d). Texte toujours interpolé (jamais en HTML) : noms, rôles et
- * adresses viennent de tiers. Le lien d'invitation s'affiche en texte à copier, pas en lien cliquable.
+ * adresses viennent de tiers. Le lien d'invitation n'est jamais renvoyé par l'outil : le résumé indique où le copier.
  */
 const props = defineProps<{ tool: ToolStep }>();
 
@@ -44,8 +42,7 @@ const router = useRouter();
 
 const rows = computed(() => membersRows(props.tool.name, props.tool.result));
 const summary = computed(() => membersSummary(props.tool.name, props.tool.result));
-const inviteUrl = computed(() => inviteUrlOf(props.tool.name, props.tool.result));
-const isList = computed(() => !summary.value && !inviteUrl.value);
+const isList = computed(() => !summary.value);
 
 function open(row: MemberRow) {
     if (row.userId) router.push(`/${route.params.orgId as string}/chat/${row.userId}`);

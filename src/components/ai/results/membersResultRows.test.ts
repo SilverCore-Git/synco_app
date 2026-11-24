@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { domainFromResultPath } from './resultRegistry';
-import { inviteUrlOf, membersRows, membersSummary } from './membersResultRows';
+import { membersRows, membersSummary } from './membersResultRows';
 
 describe('rendu des résultats du domaine members', () => {
     test('membres : tableau historique, résultat paginé, profil et rôles', () => {
@@ -32,15 +32,14 @@ describe('rendu des résultats du domaine members', () => {
             .toMatchObject([{ subtitle: 'Invitation envoyée' }, { subtitle: 'org_member_limit' }]);
     });
 
-    test('résumés des outils mutants et lien d’invitation en texte', () => {
+    test('résumés des outils mutants ; le lien d’invitation n’est jamais affiché', () => {
         expect(membersSummary('remove_member', { removedUserId: 'u' })).toBe("Membre exclu de l'organisation");
         expect(membersSummary('add_role_member', { assigned: ['a', 'b'] })).toBe('2 membres ont reçu le rôle');
         expect(membersSummary('set_permissions', { overrideCount: 1 })).toBe('1 surcharge enregistrée');
         expect(membersSummary('get_my_permissions', { permissions: { A: true, B: false, C: true } })).toBe('2 permissions sur 3');
         expect(membersSummary('list_members', [])).toBeNull();
-        expect(inviteUrlOf('create_org_invite_link', { inviteUrl: 'https://app.test/invite/abc' })).toBe('https://app.test/invite/abc');
-        expect(inviteUrlOf('create_org_invite_link', {})).toBeNull();
-        expect(inviteUrlOf('list_roles', { inviteUrl: 'x' })).toBeNull();
+        expect(membersSummary('create_org_invite_link', { inviteId: 'i', expiresAt: null, maxUses: 10 })).toContain('à copier dans Paramètres > Invitations');
+        expect(membersSummary('create_org_invite_link', { inviteUrl: 'https://x/invite/secret' })).not.toContain('secret');
     });
 
     test('du texte HTML de tiers reste du texte brut (aucune interprétation dans les lignes)', () => {

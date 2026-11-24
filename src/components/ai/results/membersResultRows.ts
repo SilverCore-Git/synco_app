@@ -47,7 +47,7 @@ export function membersSummary(name: string, result: unknown): string | null {
         case 'remove_role_member': return plural(Array.isArray(r.removed) ? r.removed.length : 0, 'membre a perdu le rôle', 'membres ont perdu le rôle');
         case 'set_member_role': return 'Rôle du membre mis à jour';
         case 'set_permissions': return plural(typeof r.overrideCount === 'number' ? r.overrideCount : 0, 'surcharge enregistrée', 'surcharges enregistrées');
-        case 'create_org_invite_link': return `Lien d'invitation créé (${expiry(r.expiresAt)})`;
+        case 'create_org_invite_link': return `Lien créé — à copier dans Paramètres > Invitations (${expiry(r.expiresAt)})`;
         case 'get_my_permissions': {
             const perms = rec(r.permissions);
             const granted = Object.values(perms).filter((v) => v === true).length;
@@ -56,10 +56,6 @@ export function membersSummary(name: string, result: unknown): string | null {
         default: return null;
     }
 }
-
-/** Lien d'invitation à afficher en texte (jamais cliquable depuis le résultat). */
-export const inviteUrlOf = (name: string, result: unknown): string | null =>
-    name === 'create_org_invite_link' && str(rec(result).inviteUrl) ? str(rec(result).inviteUrl) : null;
 
 /** Résultats d'envoi d'e-mails d'invitation, un par adresse. */
 export function inviteEmailRows(result: unknown): MemberRow[] {
