@@ -1,7 +1,7 @@
 /**
  * Fichiers envoyés par l'agent (PC72, PC77). Le format de stockage des artefacts n'est pas encore dans la
- * spec (annexe A de C3, lot L00g) : l'app ne connaît qu'une INTERFACE de source, que L00g/L12b branchera
- * sur `…/artifacts/:id` déchiffré sous `CK`. Ici : nom assaini, empreinte vérifiée, rendu Markdown sans HTML.
+ * spec (13) : l'app ne connaît qu'une INTERFACE de source ; `artifactSource.ts` (L12b) la branche sur
+ * `…/artifacts/:id` déchiffré sous `CK`. Ici : nom assaini, empreinte vérifiée, rendu Markdown sans HTML.
  */
 import { cleanText } from '../plan/planLabels';
 
@@ -35,7 +35,9 @@ const hex = (buf: ArrayBuffer): string => [...new Uint8Array(buf)].map(b => b.to
 /** Vérifie l'empreinte annoncée (simple hachage SHA-256 de la plateforme, aucune crypto maison). */
 export async function artifactMatches(bytes: Uint8Array, sha256: string): Promise<boolean> {
     const copy = new Uint8Array(bytes);
-    return hex(await crypto.subtle.digest('SHA-256', copy)) === sha256.toLowerCase();
+    // Hexadécimal minuscule exigé (13 §3) : une empreinte en majuscules est refusée, pas normalisée.
+    if (!/^[0-9a-f]{64}$/.test(sha256)) return false;
+    return hex(await crypto.subtle.digest('SHA-256', copy)) === sha256;
 }
 
 /** Lit l'artefact et vérifie son empreinte ; tout écart est « illisible » (carte grise). */
