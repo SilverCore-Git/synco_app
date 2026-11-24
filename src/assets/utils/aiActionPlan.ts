@@ -603,6 +603,11 @@ export interface PlanContext {
     mode: MandateMode;
     /** Politique effective de `create_thread` = `ask`. */
     createThreadAsk: boolean;
+    /**
+     * Outils proposables à l'org (au manifeste, politique non `deny`). Un kind déclaré par un module
+     * `planKinds/` avec `tool` n'est admis que si cet outil y figure ; absent = aucun outil proposable.
+     */
+    availableTools?: ReadonlySet<string>;
 }
 
 /** Action du graphe : ce que l'API connaît sans le contenu (§8.1, §12.2). */
@@ -674,6 +679,9 @@ export function validatePlan(plan: JsonValue, ctx: PlanContext): PlanGraph {
         const kindText = str(action, 'kind');
         if (kindText === undefined || !(ACTION_KINDS.includes(kindText) || planKindDescription(kindText))) throw fail('plan_kind');
         const kind = kindText as ActionKind;
+        // Kind déclaré par le registre : lié à son outil, qui doit être proposable à l'org (pas `deny`).
+        const declared = ACTION_KINDS.includes(kind) ? undefined : planKindDescription(kind);
+        if (declared?.tool && !ctx.availableTools?.has(declared.tool)) throw fail('plan_kind');
         let schema: ArgsSchema | undefined;
         if (kind === 'server.call') {
             const tool = str(action, 'tool');
