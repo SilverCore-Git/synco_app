@@ -71,10 +71,12 @@ export function replaceFileContent(
     fileId: string,
     content: Blob,
     name: string,
-    keyContext: FileKeyContext
+    keyContext: FileKeyContext,
+    /** Plan d'action (`file.update_text`) : lien de l'action et contenu attendu (refus si le fichier a changé). */
+    plan?: { planHeader?: string; expectedBlobId?: string }
 ): Promise<any>
 {
     return enqueueTransfer('upload', name, content.size, (handle) =>
-        runChunkedUpload(content, name, { kind: 'replace', fileId, keyContext }, handle)
+        runChunkedUpload(content, name, { kind: 'replace', fileId, keyContext, ...plan }, handle)
     ).promise;
 }

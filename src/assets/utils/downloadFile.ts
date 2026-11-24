@@ -33,6 +33,11 @@ export interface FileMetadata {
     keyVersion: number;
     iv: string;
     workspaceId?: string | null;
+    /** Rattachements du fichier : un fichier d'espace n'en a aucun (gardes des outils `read_file`, `update_text_file`). */
+    orgId?: string | null;
+    messageId?: string | null;
+    dmMessageId?: string | null;
+    taskId?: string | null;
     // Résolus par l'API : l'autre participant d'une conversation DM, le
     // salon d'une pièce jointe hors espace (cf. synco_api cdnRoutes.ts).
     dmPeerId?: string;
