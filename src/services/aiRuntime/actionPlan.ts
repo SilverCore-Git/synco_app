@@ -173,6 +173,8 @@ export interface AcceptDecision {
     decision: 'accept';
     accepted: number[];
     serverDigests: { n: number; sha256Hex: string }[];
+    /** PC94 (12 §10.7) : déclaration signée du texte de chaque message d'agent accepté (plan/textDeclarations.ts). */
+    textDeclarations?: { n: number; value: string }[];
 }
 export interface RejectDecision {
     decision: 'reject';
