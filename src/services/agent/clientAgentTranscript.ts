@@ -3,6 +3,8 @@
 // de `parts` (texte, raisonnement, outils avec leur résultat) qu'on rejoue ici sous forme de messages
 // `assistant` (texte + bloc <tool_call>) puis `user` (résultat de l'outil).
 
+import { wrapUntrusted } from './untrusted';
+
 export interface EngineMessage {
     role: 'system' | 'user' | 'assistant';
     content: string;
@@ -17,12 +19,17 @@ const asObject = (v: unknown): any => {
     return v ?? {};
 };
 
-export const formatToolResult = (name: string, status: string, result: unknown): string => {
+/** Nom d'outil → étiquette `source` de l'enveloppe `<untrusted>` (champ `untrusted` du manifeste). */
+export type UntrustedSources = ReadonlyMap<string, string>;
+
+export const formatToolResult = (name: string, status: string, result: unknown, untrusted?: string | null): string => {
     let body: string;
     if (status === 'rejected') body = JSON.stringify({ error: "Action refusée par l'utilisateur." });
     else {
         body = typeof result === 'string' ? result : JSON.stringify(result ?? {});
         if (body.length > MAX_RESULT_CHARS) body = body.slice(0, MAX_RESULT_CHARS) + '…[tronqué]';
+        // Après la troncature : l'enveloppe se referme toujours. Texte de tiers = donnée, jamais consigne.
+        if (untrusted) body = wrapUntrusted(untrusted, body);
     }
     return `[Résultat de l'outil ${name}]\n${body}\nUtilise ce résultat pour répondre à l'utilisateur, ou appelle un autre outil si nécessaire.`;
 };
@@ -31,7 +38,7 @@ const stripReasoning = (text: string) => text
     .replace(/<think>[\s\S]*?(?:<\/think>|$)/g, '')
     .replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/g, '');
 
-export const buildTranscript = (messages: any[]): EngineMessage[] => {
+export const buildTranscript = (messages: any[], untrustedSources?: UntrustedSources): EngineMessage[] => {
     const out: EngineMessage[] = [];
     // Deux messages consécutifs de même rôle sont fusionnés : plusieurs gabarits de chat l'exigent.
     const push = (role: 'user' | 'assistant', content: string | null | undefined) => {
@@ -59,7 +66,7 @@ export const buildTranscript = (messages: any[]): EngineMessage[] => {
                     text = '';
                     // Un outil encore en attente n'a pas de résultat à rejouer.
                     if (t.status === 'done' || t.status === 'error' || t.status === 'rejected') {
-                        push('user', formatToolResult(t.name, t.status, t.result));
+                        push('user', formatToolResult(t.name, t.status, t.result, untrustedSources?.get(t.name)));
                     }
                 }
             }

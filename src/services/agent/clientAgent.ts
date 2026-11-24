@@ -93,9 +93,10 @@ async function* runLoop(deps: ClientAgentDeps): AsyncGenerator<AgentEvent> {
     }
     if (deps.allowedTools) tools = tools.filter(t => deps.allowedTools!.includes(t.name));
     const system = buildClientAgentSystemPrompt(tools, deps.effort);
+    const untrustedSources = new Map(tools.flatMap(t => (t.untrusted ? [[t.name, t.untrusted] as [string, string]] : [])));
 
     for (let step = 0; step < MAX_STEPS; step++) {
-        const transcript: EngineMessage[] = [{ role: 'system', content: system }, ...buildTranscript(deps.getMessages())];
+        const transcript: EngineMessage[] = [{ role: 'system', content: system }, ...buildTranscript(deps.getMessages(), untrustedSources)];
         const splitter = new ThinkTagSplitter();
         let call: { name: string; arguments: any } | null = null;
 

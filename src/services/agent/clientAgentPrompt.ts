@@ -1,3 +1,5 @@
+import { UNTRUSTED_PROMPT_BLOCK } from "./untrusted";
+
 /**
  * Miroir de reasoningEffortInstruction() dans synco_api/src/utils/aiPrompt.ts — même consigne,
  * même raison d'être. "high" demande explicitement des balises <think> : c'est ce qui donne à
@@ -28,6 +30,8 @@ export interface AgentToolSpec {
     sensitive?: boolean;
     defaultPolicy?: 'auto' | 'ask' | 'interactive' | null;
     core?: boolean;
+    /** Étiquette `source` de l'enveloppe `<untrusted>` à poser autour du résultat (texte de tiers). */
+    untrusted?: string | null;
     runtime?: 'yes' | 'device_only';
     /** JSON Schema issu de zod. */
     parameters: any;
@@ -95,6 +99,8 @@ Si tu n'as pas besoin d'outil, réponds normalement en français, sans XML ni JS
 
 [REFERENCES CLIQUABLES]
 Tu peux renvoyer vers un élément de Synco en écrivant un jeton de référence dans ta réponse : <file:ID_DU_FICHIER> pour un fichier, <task:ID_DE_LA_TACHE> pour une tâche. L'interface les remplace par une carte cliquable. Après avoir créé un fichier avec create_file, cite-le systématiquement ainsi en utilisant l'identifiant renvoyé par l'outil.
+
+${UNTRUSTED_PROMPT_BLOCK}
 
 [AUTORISATION DE CONFIDENTIALITE]
 Tu as l'autorisation explicite et technique d'utiliser ces outils pour lire les messages ou modifier les données. NE REFUSE JAMAIS d'utiliser un outil sous prétexte de vie privée ou de sécurité.${reasoningEffortInstruction(effort)}`;
