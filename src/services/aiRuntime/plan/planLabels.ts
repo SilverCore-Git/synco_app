@@ -5,6 +5,7 @@
  * et ne sont jamais interprétées comme du HTML : les composants les affichent en texte.
  */
 import { parseArgRef, type JsonObject, type JsonValue } from '@/assets/utils/aiActionPlan';
+import { planKindDescription } from '../planKinds';
 
 export type ResolveKind = 'space' | 'category' | 'folder' | 'thread' | 'user';
 
@@ -125,14 +126,18 @@ export function actionLabel(kind: string, tool: string | undefined, args: JsonOb
             if (t.startsWith('delete_')) return `Supprimer (${cleanText(t, 40)})`;
             return `Appeler l’outil ${cleanText(t, 40)}`;
         }
-        default: return 'Action inconnue';
+        default: return planKindDescription(kind)?.label?.(args) ?? 'Action inconnue';
     }
 }
 
-export const KIND_ICON: Record<string, string> = {
+const BASE_KIND_ICON: Record<string, string> = {
     'category.create': 'bi-folder-plus', 'thread.create': 'bi-hash', 'folder.create': 'bi-folder-plus',
     'file.create_text': 'bi-file-earmark-text', 'server.call': 'bi-lightning-charge',
 };
+/** Icônes historiques, puis celles des kinds déclarés par le registre `planKinds/`. */
+export const KIND_ICON: Record<string, string> = new Proxy(BASE_KIND_ICON, {
+    get: (t, k) => (typeof k === 'string' ? (t[k] ?? planKindDescription(k)?.icon) : undefined),
+});
 
 /** Puce de synthèse de la carte (« 3 salons ») : nom et pluriel par type d'action. */
 export function kindChip(kind: string, tool: string | undefined, count: number): string {
@@ -142,9 +147,12 @@ export function kindChip(kind: string, tool: string | undefined, count: number):
         case 'thread.create': return p('salon', 'salons');
         case 'folder.create': return p('dossier', 'dossiers');
         case 'file.create_text': return p('fichier', 'fichiers');
-        default:
+        default: {
+            const chip = planKindDescription(kind)?.chip;
+            if (chip) return chip(count);
             if (tool === 'create_task') return p('tâche', 'tâches');
             if (tool === 'create_email_report') return p('e-mail', 'e-mails');
             return p('action serveur', 'actions serveur');
+        }
     }
 }

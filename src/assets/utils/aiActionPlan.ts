@@ -16,6 +16,7 @@
 import { RuntimeFormatError, isValidId, sha256, toHex } from './runtimeCert';
 import type { MandateMode } from './runtimeDelegation';
 import { TEXT_FILE_FORMATS } from './textFileFormats';
+import { planKindDescription } from '@/services/aiRuntime/planKinds';
 
 const enc = new TextEncoder();
 
@@ -544,11 +545,14 @@ export class ToolManifest {
     }
 }
 
-export type ActionKind = 'category.create' | 'thread.create' | 'folder.create' | 'file.create_text' | 'server.call';
+type HistoricKind = 'category.create' | 'thread.create' | 'folder.create' | 'file.create_text' | 'server.call';
+/** Kinds historiques, plus ceux déclarés par un module `planKinds/<kind>.ts` (registre L15-0). */
+export type ActionKind = string;
 const ACTION_KINDS: readonly string[] = ['category.create', 'thread.create', 'folder.create', 'file.create_text', 'server.call'];
 
 /** Champs exportés (12 §4). */
-export const actionExports = (kind: ActionKind): readonly string[] => (kind === 'server.call' ? ['id'] : ['id', 'spaceId']);
+export const actionExports = (kind: ActionKind): readonly string[] =>
+    kind === 'server.call' ? ['id'] : ACTION_KINDS.includes(kind) ? ['id', 'spaceId'] : (planKindDescription(kind)?.exports ?? ['id']);
 
 /**
  * Exécutant (12 §4) selon le mode du mandat vérifié et la politique effective de `create_thread` ;
@@ -562,7 +566,7 @@ export function actionExecutor(kind: ActionKind, mode: MandateMode, createThread
 
 const NAME: ParamSpec = { type: 'string', required: true, min: 1, max: 255 };
 const ID = (required: boolean): ParamSpec => ({ type: 'string', required, id: true });
-const KIND_SCHEMAS: Record<Exclude<ActionKind, 'server.call'>, ArgsSchema> = {
+const KIND_SCHEMAS: Record<Exclude<HistoricKind, 'server.call'>, ArgsSchema> = {
     'category.create': new Map([['name', NAME], ['spaceId', ID(false)]]),
     'thread.create': new Map([
         ['name', NAME],
@@ -668,14 +672,14 @@ export function validatePlan(plan: JsonValue, ctx: PlanContext): PlanGraph {
 
         // Règle 4.
         const kindText = str(action, 'kind');
-        if (kindText === undefined || !ACTION_KINDS.includes(kindText)) throw fail('plan_kind');
+        if (kindText === undefined || !(ACTION_KINDS.includes(kindText) || planKindDescription(kindText))) throw fail('plan_kind');
         const kind = kindText as ActionKind;
         let schema: ArgsSchema | undefined;
         if (kind === 'server.call') {
             const tool = str(action, 'tool');
             schema = tool === undefined ? undefined : ctx.manifest.get(tool);
         } else if (!has(action, 'tool')) {
-            schema = KIND_SCHEMAS[kind];
+            schema = ACTION_KINDS.includes(kind) ? KIND_SCHEMAS[kind as Exclude<HistoricKind, 'server.call'>] : planKindDescription(kind)?.schema;
         }
         if (!schema) throw fail('plan_kind');
         const args = action.args;

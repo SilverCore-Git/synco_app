@@ -1,3 +1,5 @@
+import { planClientTool } from '@/services/aiRuntime/planKinds';
+
 export type ToolStepStatus = 'pending' | 'executing' | 'done' | 'rejected' | 'error';
 
 export interface ToolStep {
@@ -53,5 +55,6 @@ export const TOOL_LABELS: Record<string, { label: string; icon: string }> = {
 };
 
 export function toolLabel(name: string) {
-    return TOOL_LABELS[name] || { label: name, icon: 'bi-wrench-adjustable-circle' };
+    const declared = planClientTool(name);
+    return TOOL_LABELS[name] || (declared ? { label: declared.label, icon: declared.icon } : { label: name, icon: 'bi-wrench-adjustable-circle' });
 }
