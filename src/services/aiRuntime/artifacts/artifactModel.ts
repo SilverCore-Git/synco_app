@@ -48,6 +48,21 @@ export async function readVerified(source: ArtifactSource, meta: ArtifactMeta): 
     return bytes;
 }
 
+/** Téléchargement (13 §7.2) : toujours `application/octet-stream` (jamais d'ouverture dans le navigateur), nom assaini. */
+export async function prepareDownload(source: ArtifactSource, meta: ArtifactMeta): Promise<{ blob: Blob; fileName: string }> {
+    const bytes = await readVerified(source, meta);
+    return { blob: new Blob([new Uint8Array(bytes)], { type: 'application/octet-stream' }), fileName: sanitizeArtifactName(meta.name) };
+}
+
+/** « Enregistrer dans un espace » (13 §8) : seul le clair vérifié part, sous le nom assaini ; un échec de contrôle n'écrit rien. */
+export async function saveVerified(
+    source: ArtifactSource, meta: ArtifactMeta, target: { spaceId: string; folderId: string | null },
+    saveText: (target: { spaceId: string; folderId: string | null }, name: string, content: string) => Promise<void>,
+): Promise<void> {
+    const content = new TextDecoder().decode(await readVerified(source, meta));
+    await saveText(target, sanitizeArtifactName(meta.name), content);
+}
+
 export const isMarkdownName = (name: string): boolean => /\.(md|markdown)$/i.test(name);
 
 // ---------------------------------------------------------------------------

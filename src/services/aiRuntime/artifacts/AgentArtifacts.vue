@@ -17,7 +17,7 @@ import type { StoredFile } from '@/types/types';
 import MessageAttachments from '@/views/OrgSpace/components/common/MessageAttachments.vue';
 import ArtifactViewer from './ArtifactViewer.vue';
 import SaveToSpacePicker, { type PickerSpace } from './SaveToSpacePicker.vue';
-import { ArtifactUnreadableError, readVerified, sanitizeArtifactName, type ArtifactMeta, type ArtifactSource } from './artifactModel';
+import { ArtifactUnreadableError, prepareDownload, saveVerified, sanitizeArtifactName, type ArtifactMeta, type ArtifactSource } from './artifactModel';
 
 const props = defineProps<{
     artifacts: ArtifactMeta[];
@@ -49,10 +49,10 @@ const download = async (f: StoredFile) => {
     const m = metaOf(f);
     if (!m) return;
     try {
-        const bytes = await readVerified(props.source, m);
-        const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'application/octet-stream' }));
+        const { blob, fileName } = await prepareDownload(props.source, m);
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url; a.download = sanitizeArtifactName(m.name);
+        a.href = url; a.download = fileName;
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 5_000);
     } catch (e) {
@@ -65,8 +65,7 @@ const save = async (target: { spaceId: string; folderId: string | null }) => {
     if (!m) return;
     busy.value = true; error.value = '';
     try {
-        const content = new TextDecoder().decode(await readVerified(props.source, m));
-        await props.saveText(target, sanitizeArtifactName(m.name), content);
+        await saveVerified(props.source, m, target, props.saveText);
         saving.value = null;
     } catch { error.value = 'Enregistrement impossible. Réessayez.'; }
     finally { busy.value = false; }
