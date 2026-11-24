@@ -1616,3 +1616,5 @@ Recette Firefox (carte, visionneuse, téléchargement, enregistrement, hors lign
 
 ### **Prochaines Étapes**
 Brancher `planKinds` dans `deviceRunner` quand un lot ajoute un kind.
+
+**Corrections L15-0 après revue** : enveloppe `<untrusted>` et bloc de prompt dans l'agent navigateur (`services/agent/untrusted.ts`), rechargement des outils au changement d'org dans les réglages runtime. `bun test src/services src/components` : 362 réussis.
