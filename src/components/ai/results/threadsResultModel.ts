@@ -50,6 +50,10 @@ function inviteCard(raw: unknown): ResultCard | null {
 
 export function buildThreadsView(toolName: string, result: unknown): ThreadsResultView {
     switch (toolName) {
+        case 'delete_category': {
+            const n = isRecord(result) ? num(result.threadsDeleted) : undefined;
+            return { kind: 'message', text: n === undefined ? MESSAGES.delete_category! : `Catégorie supprimée avec ${n} ${n > 1 ? 'salons' : 'salon'}.` };
+        }
         case 'list_categories': {
             const cards = (Array.isArray(result) ? result : []).flatMap((c): ResultCard[] => {
                 const id = isRecord(c) ? str(c.id) : undefined;

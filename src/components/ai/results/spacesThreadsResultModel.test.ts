@@ -30,6 +30,11 @@ describe('rendu des domaines Espaces et Salons', () => {
         expect(buildThreadsView('delete_category', null)).toEqual({ kind: 'message', text: 'Catégorie supprimée avec ses salons.' });
     });
 
+    test('delete_category : nombre de salons supprimés', () => {
+        expect(buildThreadsView('delete_category', { deleted: true, threadsDeleted: 3 })).toEqual({ kind: 'message', text: 'Catégorie supprimée avec 3 salons.' });
+        expect(buildThreadsView('delete_category', { deleted: true, threadsDeleted: 1 }).kind).toBe('message');
+    });
+
     test('invitations : le code complet n’apparaît qu’à la création', () => {
         const list = buildThreadsView('list_thread_invites', { invites: [{ id: 'i', codePrefix: 'ab12…', uses: 1, maxUses: 3, expiresAt: '2026-12-01T10:00:00.000Z' }] });
         expect(list.kind === 'cards' && list.cards[0]!.title).toBe('Code ab12…');
