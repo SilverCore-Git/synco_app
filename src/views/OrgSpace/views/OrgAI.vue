@@ -408,6 +408,7 @@ import { generateThreadKey, encryptThreadKeyForMember, privateKey } from '@/asse
 import { resolveRecipientKey } from '@/assets/utils/keyTrust';
 import { openedOrg, user } from '@/assets/var';
 import { createFolderRequest, createTextFile } from '@/services/fileActions';
+import { planClientTool } from '@/services/aiRuntime/planKinds';
 import { isDocumentationTool, runDocumentationTool } from '@/services/DocumentationService';
 import { autoFocus } from '@/assets/utils/autoFocus';
 
@@ -847,6 +848,10 @@ const executeClientTool = async (name: string, args: any, clientValue?: string):
   if (name === 'ask_question') {
     return { answer: clientValue ?? '' };
   }
+
+  // Outils client déclarés par un module `planKinds/<kind>.ts` (registre L15-0) : aucun ajout ici par domaine.
+  const declared = planClientTool(name);
+  if (declared) return await declared.run(args ?? {}, { orgId });
 
   throw new Error(`Outil client inconnu: ${name}`);
 };

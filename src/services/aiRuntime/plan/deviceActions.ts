@@ -17,6 +17,7 @@ import type { DeviceCall } from './deviceRunner';
 import { mapBounded } from './bounded';
 import { DeviceHttpError, DeviceNotSentError } from './deviceErrors';
 import { pickCategory } from './pickCategory';
+import { planKindExecutor } from '../planKinds';
 
 const PLAN_HEADER = 'X-Synco-Plan';
 /** Résolutions de clés de membres en parallèle (salon d'org : des centaines de membres). */
@@ -103,6 +104,12 @@ export async function executeDeviceAction(call: DeviceCall, planHeader: string, 
             if (!spaceId) throw new DeviceNotSentError('invalid_args');
             const file = await createTextFile({ spaceId, name: str(a.name) ?? '', content: str(a.content) ?? '', folderId: str(a.folderId), planHeader });
             return { id: file.id, spaceId };
+        }
+        default: {
+            // Kind déposé dans `planKinds/<kind>.ts` (registre L15-0) : aucun fichier partagé à modifier par domaine.
+            const executor = planKindExecutor(call.kind);
+            if (!executor) throw new DeviceNotSentError('unknown_kind');
+            return executor.execute(a, planHeader, orgId);
         }
     }
 }

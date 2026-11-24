@@ -102,6 +102,17 @@ describe("envoi", () => {
         expect(apiCalls[0].headers["X-Synco-Plan"]).toBeUndefined();
     });
 
+    test("remplacement : expectedBlobId dans le corps, X-Synco-Plan en en-tête seulement", async () => {
+        apiRoute = () => ({ status: 201, body: ticket(1) });
+        cdnRoute = () => ({ status: 201, body: {} });
+        const { create: _create, ...content } = request;
+        await CdnUpload.open({ ...content, replaceFileId: "file-9", expectedBlobId: "blob-lu", planHeader: "plan1/2" }, signal());
+        expect(apiCalls[0].body.expectedBlobId).toBe("blob-lu");
+        expect(apiCalls[0].body.planHeader).toBeUndefined();
+        expect(apiCalls[0].headers).toEqual({ "X-Synco-Plan": "plan1/2" });
+        expect(cdnCalls[0].headers["X-Synco-Plan"]).toBeUndefined();
+    });
+
     test("remplacement : route replace, sans champs de destination", async () => {
         apiRoute = () => ({ status: 201, body: ticket(1) });
         cdnRoute = () => ({ status: 201, body: {} });
