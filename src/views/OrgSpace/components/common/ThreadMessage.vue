@@ -63,6 +63,12 @@
                         <div class="max-w-md opacity-70 pointer-events-none text-[11px] truncate">
                             {{ messagePreview(msg.replyMessage?.content) }}
                         </div>
+                        <i
+                            v-if="replyAgentMark"
+                            class="bi shrink-0 text-[10px]"
+                            :class="replyAgentMark.warning ? 'bi-exclamation-triangle-fill text-amber-500' : 'bi-stars text-(--primary)/70'"
+                            :title="replyAgentMark.title"
+                        />
 
                     </div>
 
@@ -231,6 +237,7 @@
                                 <LinkPreview v-else :content="forwarded ? forwarded.note : msg.content" />
                                 <span v-if="msg.edited" class="text-[10px] text-(--text2)"> (modifié)</span>
                                 <MessageAuthBadge v-if="!msg.isWebhook && channel.authenticatedMessages" :state="msg.authState" />
+                                <AgentMessageMark v-if="!msg.isWebhook" :mark="msg.agentMark" :auth-state="msg.authState" :sender-name="msg.sender?.name" />
                             </div>
                             
                             <!-- Message reactions -->
@@ -301,7 +308,10 @@ import type { Message } from '@/types/types';
 import MessageAttachments from './MessageAttachments.vue';
 import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
 import MessageAuthBadge from './MessageAuthBadge.vue';
-import { clientMsgIdOf, encryptThreadMessageV2, revisionOf } from '@/assets/utils/messageAuth';
+import AgentMessageMark from './AgentMessageMark.vue';
+import { agentPreviewMark } from './agentMessageMark';
+import { clientMsgIdOf, encryptThreadMessageV2, encryptThreadMessageV3, revisionOf } from '@/assets/utils/messageAuth';
+import { isM3Iv } from '@/assets/utils/agentMessage';
 import MarkdownRender from '../../views/MarkdownRender.vue';
 import ThreadTextarea from './ThreadTextarea.vue';
 import { user } from '@/assets/var';
@@ -337,6 +347,12 @@ const props = defineProps<{
     isStacked?: boolean;
     isEditing?: boolean;
 }>();
+
+/** Marque « avec Synco AI » du message cité (aperçu, 12 §4.3). */
+const replyAgentMark = computed(() => {
+    const r = props.msg.replyMessage;
+    return r ? agentPreviewMark({ mark: r.agentMark, authState: r.authState, senderName: r.sender?.name }) : null;
+});
 
 const emit = defineEmits<{
     (e: 'edit-start'): void;
@@ -617,7 +633,8 @@ const saveEdit = async () => {
     const threadId = channel.id.value;
     const originalId = clientMsgIdOf(props.msg.iv);
     const { ciphertext, iv } = channel.authenticatedMessages && threadId && user.value?.id && originalId
-        ? await encryptThreadMessageV2(content, key, { threadId, senderId: user.value.id }, originalId, revisionOf(props.msg.iv) + 1)
+        // Révision d'un message de l'agent (m3) : reste m3 d'auteur `ai`, la mention ne disparaît pas (12 §4.3).
+        ? await (isM3Iv(props.msg.iv) ? encryptThreadMessageV3 : encryptThreadMessageV2)(content, key, { threadId, senderId: user.value.id }, originalId, revisionOf(props.msg.iv) + 1)
         : await encryptMessageWithContentKey(content, key);
 
     channel.edit(props.msg.id, ciphertext, iv, extractReferenceTokens(content));
