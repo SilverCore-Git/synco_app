@@ -192,7 +192,15 @@ const load = async () => {
     }
 };
 onMounted(async () => { await load(); await loadTools(); });
-watch(orgId, () => { view.value = null; void load(); });
+// Changement d'org : les outils et les sensibles de l'org précédente ne valent plus (PC86), on recharge tout.
+watch(orgId, async () => {
+    view.value = null;
+    tools.value = [];
+    sensitiveTools.value = new Set();
+    toolQuery.value = '';
+    await load();
+    await loadTools();
+});
 
 const policyDirty = computed(() => !!view.value && (
     draft.enabled !== view.value.policy.enabled
@@ -293,7 +301,9 @@ const toolNames = computed(() => Object.keys(draft.toolPolicy).sort());
 const loadTools = async () => {
     if (tools.value.length || !orgId.value) return;
     try {
-        const manifest = await loadToolManifest(orgId.value);
+        const asked = orgId.value;
+        const manifest = await loadToolManifest(asked);
+        if (asked !== orgId.value) return; // l'org a changé pendant le chargement : réponse périmée
         tools.value = manifest.map(t => t.name).sort();
         sensitiveTools.value = new Set(manifest.filter(t => t.sensitive).map(t => t.name));
         for (const name of Object.keys(draft.toolPolicy)) if (sensitiveTools.value.has(name) && draft.toolPolicy[name] === 'auto') draft.toolPolicy = { ...draft.toolPolicy, [name]: 'ask' };
