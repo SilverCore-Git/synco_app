@@ -314,6 +314,10 @@ export class RuntimeConnection {
                 if (!messageId || !toolCallId || !name || result === undefined) return null;
                 return { t, messageId, toolCallId, name, result: parseJson(await decryptAiFieldStrict(ck, sessionId, messageId, 'tool_result', result)) };
             }
+            if (t === 'artifact') {
+                const messageId = str(f.messageId), toolCallId = str(f.toolCallId), artifactId = str(f.artifactId);
+                return messageId && toolCallId && artifactId ? { t, messageId, toolCallId, artifactId } : null;
+            }
             if (t === 'status') {
                 const status = str(f.status);
                 return status ? { t, status: status as ConversationStatus, reason: str(f.reason) } : null;

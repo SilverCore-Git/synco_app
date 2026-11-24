@@ -5,7 +5,7 @@ import { encryptAiFieldStrict } from '@/assets/utils/aiActionPlan';
 import { backoffMs, type ConnectionDeps, type InboxItem, type SocketLike } from './connection';
 import { RuntimeEventSource } from './runtimeSource';
 import { useRuntimeConversation } from './useRuntimeConversation';
-import type { TranscriptMessage } from './transcript';
+import { artifactPartsFromHistory, type TranscriptMessage } from './transcript';
 
 const SID = '0f0e0d0c-0b0a-4908-8706-050403020100';
 const MID = '3c2b1a09-8f7e-4d6c-9b5a-493827161504';
@@ -130,5 +130,26 @@ describe('conversation runtime', () => {
         expect(['resuming', 'offline']).toContain(h.conv.link.value);
         h.conv.close();
         expect(await h.conv.send('x')).toBe(false);
+    });
+
+    test('trame artifact : une part de fichier sous le message, sans doublon ; un artefact sans identifiant est ignoré', async () => {
+        const h = await setup();
+        h.s.push({ v: 1, t: 'text', epoch: 2, seq: 1, messageId: MID, delta: await sealed(MID, 'ws:text:2:1', 'Voici le fichier') });
+        h.s.push({ v: 1, t: 'artifact', epoch: 2, seq: 2, messageId: MID, toolCallId: 'call_3', artifactId: 'art-1' });
+        h.s.push({ v: 1, t: 'artifact', epoch: 2, seq: 3, messageId: MID, toolCallId: 'call_3' });
+        h.s.push({ v: 1, t: 'artifact', epoch: 2, seq: 4, messageId: MID, toolCallId: 'call_3', artifactId: 'art-1' });
+        await h.flush();
+        expect(h.messages.value[1]!.parts).toEqual([{ type: 'text', text: 'Voici le fichier' }, { type: 'artifact', messageId: MID, toolCallId: 'call_3', artifactId: 'art-1' }]);
+    });
+});
+
+describe('artefacts au rechargement (13 §6.2, §6.3)', () => {
+    const tool = (over: Record<string, unknown>) => ({ type: 'tool' as const, tool: { toolCallId: 'call_3', name: 'send_file', status: 'done' as const, messageId: MID, args: { artifactId: 'art-1', ext: 'csv', name: 'a.csv' }, ...over } });
+    test('seul un appel send_file terminé, avec message et identifiant, devient une part', () => {
+        const msgs: TranscriptMessage[] = [{ role: 'assistant', content: '', parts: [tool({}), tool({ toolCallId: 'c4', status: 'error' }), tool({ toolCallId: 'c5', messageId: undefined }), tool({ toolCallId: 'c6', args: {} }), tool({ toolCallId: 'c7', name: 'autre' }), tool({ toolCallId: 'c8', args: { artifactId: '../x' } })] }];
+        artifactPartsFromHistory(msgs);
+        expect(msgs[0]!.parts!.filter(p => p.type === 'artifact')).toEqual([{ type: 'artifact', messageId: MID, toolCallId: 'call_3', artifactId: 'art-1' }]);
+        artifactPartsFromHistory(msgs);
+        expect(msgs[0]!.parts!.filter(p => p.type === 'artifact')).toHaveLength(1);
     });
 });

@@ -27,6 +27,11 @@
                 <div class="flex-1 min-w-0 pb-4"><slot name="plan" :tool-call-id="part.toolCallId" /></div>
             </div>
 
+            <div v-else-if="part.type === 'artifact'" class="flex gap-3">
+                <TimelineGutter status="done" :is-last="isLastPart(i)" />
+                <div class="flex-1 min-w-0 pb-4"><slot name="artifact" :message-id="part.messageId" :tool-call-id="part.toolCallId" :artifact-id="part.artifactId" /></div>
+            </div>
+
         </template>
 
         <div v-if="parts.length === 0 && isGenerating" class="flex gap-1 py-1">

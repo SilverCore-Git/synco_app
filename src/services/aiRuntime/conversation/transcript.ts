@@ -109,6 +109,13 @@ export function applyAgentEvent(messages: TranscriptMessage[], st: TranscriptSta
             return null;
         }
         case 'done': st.open = false; return 'turn_closed';
+        case 'artifact': {
+            const t = turn(messages, st);
+            if (!t.parts!.some(p => p.type === 'artifact' && p.artifactId === ev.artifactId)) {
+                t.parts!.push({ type: 'artifact', messageId: ev.messageId, toolCallId: ev.toolCallId, artifactId: ev.artifactId });
+            }
+            return null;
+        }
         case 'status': return null;
     }
 }
@@ -118,6 +125,30 @@ export function planPartsFromHistory(messages: TranscriptMessage[]): void {
     for (const m of messages) {
         if (!m.parts) continue;
         m.parts = m.parts.map(p => (p.type === 'tool' && p.tool.name === PLAN_TOOL ? { type: 'plan', toolCallId: p.tool.toolCallId } as TurnPart : p));
+    }
+}
+
+export const SEND_FILE_TOOL = 'send_file';
+const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
+/**
+ * Historique converti : chaque appel `send_file` terminé (`done`) dont les arguments déchiffrés portent un
+ * `artifactId` redevient une part `artifact` (13 §6.2). Un appel sans identifiant de message, en échec ou
+ * encore en cours n'affiche rien ; un artefact orphelin (jamais référencé) reste invisible (13 §6.3).
+ */
+export function artifactPartsFromHistory(messages: TranscriptMessage[]): void {
+    for (const m of messages) {
+        if (!m.parts) continue;
+        const out: TurnPart[] = [];
+        for (const p of m.parts) {
+            out.push(p);
+            if (p.type !== 'tool' || p.tool.name !== SEND_FILE_TOOL || p.tool.status !== 'done' || !p.tool.messageId) continue;
+            const id = (p.tool.args as { artifactId?: unknown } | undefined)?.artifactId;
+            if (typeof id !== 'string' || !ID_RE.test(id)) continue;
+            if (m.parts.some(q => q.type === 'artifact' && q.artifactId === id)) continue;
+            out.push({ type: 'artifact', messageId: p.tool.messageId, toolCallId: p.tool.toolCallId, artifactId: id });
+        }
+        m.parts = out;
     }
 }
 

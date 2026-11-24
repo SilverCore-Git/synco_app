@@ -26,3 +26,32 @@ describe('artefacts de l’agent', () => {
         expect(b[3]).toEqual({ t: 'code', text: 'code <b>' });
     });
 });
+
+describe('visionneuse, téléchargement, enregistrement (13 §7.2, §8)', () => {
+    const mk = async (name: string, text: string) => ({ meta: { id: 'a', name, size: enc(text).length, mimeType: 'text/html', sha256: await sha(text) } satisfies ArtifactMeta, source: { read: async () => enc(text) } });
+
+    test('html actif : texte brut côté visionneuse (jamais du Markdown), source du fichier inchangée', async () => {
+        const { isMarkdownName } = await import('./artifactModel');
+        expect(isMarkdownName('page.html')).toBe(false);
+        expect(isMarkdownName('x.js') || isMarkdownName('x.sh') || isMarkdownName('x.php')).toBe(false);
+        expect(isMarkdownName('Notes.MD')).toBe(true);
+    });
+    test('téléchargement : octet-stream, nom assaini, contenu vérifié', async () => {
+        const { prepareDownload } = await import('./artifactModel');
+        const { meta, source } = await mk('../../etc/évil‮.html', '<script>alert(1)</script>');
+        const d = await prepareDownload(source, meta);
+        expect(d.blob.type).toBe('application/octet-stream');
+        expect(d.fileName).not.toMatch(/[\\/‮]/);
+        expect(await d.blob.text()).toBe('<script>alert(1)</script>');
+        await expect(prepareDownload({ read: async () => enc('<script>alert(2)</script>') }, meta)).rejects.toBeInstanceOf(ArtifactUnreadableError);
+    });
+    test('enregistrement : file.create_text avec le clair vérifié et le nom assaini ; contrôle en échec = rien écrit', async () => {
+        const { saveVerified } = await import('./artifactModel');
+        const { meta, source } = await mk('../rapport.md', '# Titre');
+        const calls: [unknown, string, string][] = [];
+        await saveVerified(source, meta, { spaceId: 's1', folderId: null }, async (t, n, c) => { calls.push([t, n, c]); });
+        expect(calls).toEqual([[{ spaceId: 's1', folderId: null }, 'rapport.md', '# Titre']]);
+        await expect(saveVerified({ read: async () => enc('# Autre') }, meta, { spaceId: 's1', folderId: null }, async () => { calls.push([null, '', '']); })).rejects.toBeInstanceOf(ArtifactUnreadableError);
+        expect(calls).toHaveLength(1);
+    });
+});

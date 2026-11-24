@@ -8,7 +8,7 @@ import {
 } from './aiProviders';
 import sfetch from '@/assets/utils/sfetch';
 import { encryptForPeer, decryptFromPeer, privateKey, decryptAiField, encryptAiField } from '@/assets/utils/crypto';
-import { planPartsFromHistory } from './aiRuntime/conversation/transcript';
+import { artifactPartsFromHistory, planPartsFromHistory } from './aiRuntime/conversation/transcript';
 import { ensureAiSessionKey, AiSessionKeyUnavailableError } from './AiSessionKeyService';
 import { assertAllowedGateway, parseGatewayUrl } from './aiGatewayPolicy';
 import { ToolCallStreamParser, type ParsedEvent } from './agent/toolCallParser';
@@ -564,6 +564,7 @@ export function convertStoredMessagesToChatMessages(stored: any[]): any[] {
                         status: tc.status === 'error' ? 'error' : 'pending',
                         category: tc.category,
                         mutating: tc.mutating,
+                        messageId: m.id,
                     },
                 });
             }
@@ -792,7 +793,7 @@ export const loadSession = async (id: string) => {
             }
 
             // Conversation runtime : un appel `propose_actions` de l'historique redevient une carte de plan.
-            if (session.regime === 'runtime' && Array.isArray(loadedMessages)) planPartsFromHistory(loadedMessages);
+            if (session.regime === 'runtime' && Array.isArray(loadedMessages)) { planPartsFromHistory(loadedMessages); artifactPartsFromHistory(loadedMessages); }
             aiSessionMessages.value = loadedMessages;
             alignProviderWithSession(regime);
         }

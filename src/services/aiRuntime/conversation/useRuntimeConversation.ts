@@ -8,7 +8,7 @@ import { ref, shallowRef, type Ref } from 'vue';
 import type { LinkState } from './connection';
 import type { AgentStreamEvent, ConversationStatus, SnapshotState } from './events';
 import type { RuntimeEventSource } from './runtimeSource';
-import { applyAgentEvent, newTranscriptState, planPartsFromHistory, PLAN_TOOL, type TranscriptMessage } from './transcript';
+import { applyAgentEvent, artifactPartsFromHistory, newTranscriptState, planPartsFromHistory, PLAN_TOOL, type TranscriptMessage } from './transcript';
 import { isBusyStatus, messageWillQueue } from './status';
 
 export interface RuntimeConversationDeps {
@@ -47,6 +47,7 @@ export function useRuntimeConversation(deps: RuntimeConversationDeps) {
     function onSnapshot(snap: SnapshotState): void {
         const msgs = deps.fromSnapshot(snap.messages);
         planPartsFromHistory(msgs);
+        artifactPartsFromHistory(msgs);
         deps.messages.value = msgs;
         status.value = snap.status;
         const last = msgs[msgs.length - 1];

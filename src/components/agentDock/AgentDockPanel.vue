@@ -85,6 +85,17 @@
                   :queued-message="lastQueuedText"
                 />
               </template>
+              <template #artifact="{ messageId, toolCallId, artifactId }">
+                <RuntimeArtifact
+                  v-if="entry.sessionId && isRuntime"
+                  :org-id="entry.orgId"
+                  :session-id="entry.sessionId"
+                  :message-id="messageId"
+                  :tool-call-id="toolCallId"
+                  :artifact-id="artifactId"
+                  :offline="planOffline"
+                />
+              </template>
             </AgentTurn>
           </div>
           <div v-else-if="msg.content" class="w-full text-sm leading-relaxed text-(--text)">
@@ -145,6 +156,7 @@ import { useRouter } from 'vue-router';
 import AgentTurn from '@/views/OrgSpace/components/ai/AgentTurn.vue';
 import PendingActionBar from '@/views/OrgSpace/components/ai/PendingActionBar.vue';
 import RuntimePlanPanel from '@/views/OrgSpace/components/ai/RuntimePlanPanel.vue';
+import RuntimeArtifact from '@/services/aiRuntime/artifacts/RuntimeArtifact.vue';
 import MarkdownRender from '@/views/OrgSpace/views/MarkdownRender.vue';
 import type { ToolStep, TurnPart } from '@/views/OrgSpace/components/ai/agentTypes';
 import { activeSessionId, activeSessionIsRuntime, aiSessionMessages, chatSessions, convertStoredMessagesToChatMessages, fetchSessions, loadSession } from '@/services/AIService';

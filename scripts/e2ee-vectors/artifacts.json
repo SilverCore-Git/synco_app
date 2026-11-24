@@ -1,0 +1,691 @@
+{
+  "description": "Artefacts de conversation (13, L00g, PC72) : métadonnées et contenu chiffrés sous CK en gcm1: (AAD sessionId:artifactId:artifact_meta et sessionId:artifactId:artifact), clair des métadonnées en JCS, empreinte SHA-256 hexadécimale minuscule des octets UTF-8 du contenu, validation du nom et du format par le worker, contrôles de l'app après déchiffrement, bornes. Vecteurs figés par la spécification, à rejouer sans modification par le runtime (outil send_file), l'API (forme et bornes) et l'app (ArtifactSource).",
+  "keys": {
+    "ckHex": "5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c",
+    "otherCkHex": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d"
+  },
+  "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+  "messageId": "3c2b1a09-8f7e-4d6c-9b5a-493827161504",
+  "toolCallId": "call_3",
+  "artifactId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b",
+  "formats": [
+    "txt",
+    "md",
+    "log",
+    "csv",
+    "json",
+    "xml",
+    "yml",
+    "ini",
+    "sql",
+    "html",
+    "css",
+    "scss",
+    "js",
+    "ts",
+    "vue",
+    "py",
+    "sh",
+    "java",
+    "c",
+    "cpp",
+    "cs",
+    "php",
+    "go",
+    "rs",
+    "rb"
+  ],
+  "toolCall": {
+    "name": "send_file",
+    "modelArgs": {
+      "name": "budget-lancement",
+      "ext": "csv",
+      "content": "poste;montant €\nLocation salle;1200\nTraiteur;850\n"
+    },
+    "storedArgs": {
+      "name": "budget-lancement.csv",
+      "ext": "csv",
+      "artifactId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b"
+    },
+    "storedArgsCanonical": "{\"artifactId\":\"8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b\",\"ext\":\"csv\",\"name\":\"budget-lancement.csv\"}",
+    "toolResult": {
+      "artifactId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b",
+      "name": "budget-lancement.csv",
+      "size": 51
+    },
+    "toolResultCanonical": "{\"artifactId\":\"8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b\",\"name\":\"budget-lancement.csv\",\"size\":51}"
+  },
+  "content": "poste;montant €\nLocation salle;1200\nTraiteur;850\n",
+  "size": 51,
+  "sha256": "7e2fea7cf9f39223770dc3a7a428fe203d3efbb53aae7cce51a9d723691a7fac",
+  "meta": {
+    "v": 1,
+    "id": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b",
+    "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+    "messageId": "3c2b1a09-8f7e-4d6c-9b5a-493827161504",
+    "toolCallId": "call_3",
+    "name": "budget-lancement.csv",
+    "ext": "csv",
+    "size": 51,
+    "sha256": "7e2fea7cf9f39223770dc3a7a428fe203d3efbb53aae7cce51a9d723691a7fac"
+  },
+  "metaCanonical": "{\"ext\":\"csv\",\"id\":\"8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b\",\"messageId\":\"3c2b1a09-8f7e-4d6c-9b5a-493827161504\",\"name\":\"budget-lancement.csv\",\"sessionId\":\"0f0e0d0c-0b0a-4908-8706-050403020100\",\"sha256\":\"7e2fea7cf9f39223770dc3a7a428fe203d3efbb53aae7cce51a9d723691a7fac\",\"size\":51,\"toolCallId\":\"call_3\",\"v\":1}",
+  "aadMeta": "0f0e0d0c-0b0a-4908-8706-050403020100:8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b:artifact_meta",
+  "ivMetaHex": "8a8a8a8a8a8a8a8a8a8a8a8a",
+  "metaValue": "gcm1:ioqKioqKioqKioqKcFF+U3ivAsucsWV70myxI63uVAYbQNbRumuKTwEfNg4IHxUm/X7gV8Nbp9WWFf3WtPZ8ixs4hHK4JNc72GsfObo+WdZX4S+cY/ePXlEu1bABoc45CSu8haGAZfcNGvrxDSn5f2xDjX7nNMLfi7/vtx5lwMX/iecNklHxyarRkuwi4cPvsNBXpF8dw1gOQoqJAhou+vYPNmrs1TR/SQAt3pfRkKsT5iB35DQo05JbopICeEO2zodRx9MxWdE46pZd626NP2nabB0X+MqwnFuY4v1ERNZe5CG4hmI1AZ3IzbeEL9xPq1UV1vfTpG6O45s5NK93WZkDLrUxIujlx9bfFExDQhsTB1qxkp/u9pj6axRjGNEvzOGZTd22k7eZw4k3j/XdVwM8s3rUAxGqWvhi+raXuxaIC3YdpBi1WvduyA==",
+  "aadContent": "0f0e0d0c-0b0a-4908-8706-050403020100:8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b:artifact",
+  "ivContentHex": "9b9b9b9b9b9b9b9b9b9b9b9b",
+  "contentValue": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNVvCBXtGwpsE5heft3ZEgMA==",
+  "deposit": {
+    "leaseEpoch": 3,
+    "id": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b",
+    "meta": "gcm1:ioqKioqKioqKioqKcFF+U3ivAsucsWV70myxI63uVAYbQNbRumuKTwEfNg4IHxUm/X7gV8Nbp9WWFf3WtPZ8ixs4hHK4JNc72GsfObo+WdZX4S+cY/ePXlEu1bABoc45CSu8haGAZfcNGvrxDSn5f2xDjX7nNMLfi7/vtx5lwMX/iecNklHxyarRkuwi4cPvsNBXpF8dw1gOQoqJAhou+vYPNmrs1TR/SQAt3pfRkKsT5iB35DQo05JbopICeEO2zodRx9MxWdE46pZd626NP2nabB0X+MqwnFuY4v1ERNZe5CG4hmI1AZ3IzbeEL9xPq1UV1vfTpG6O45s5NK93WZkDLrUxIujlx9bfFExDQhsTB1qxkp/u9pj6axRjGNEvzOGZTd22k7eZw4k3j/XdVwM8s3rUAxGqWvhi+raXuxaIC3YdpBi1WvduyA==",
+    "value": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNVvCBXtGwpsE5heft3ZEgMA=="
+  },
+  "frame": {
+    "v": 1,
+    "t": "artifact",
+    "epoch": 2,
+    "seq": 43,
+    "messageId": "3c2b1a09-8f7e-4d6c-9b5a-493827161504",
+    "toolCallId": "call_3",
+    "artifactId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b"
+  },
+  "listItem": {
+    "id": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b",
+    "meta": "gcm1:ioqKioqKioqKioqKcFF+U3ivAsucsWV70myxI63uVAYbQNbRumuKTwEfNg4IHxUm/X7gV8Nbp9WWFf3WtPZ8ixs4hHK4JNc72GsfObo+WdZX4S+cY/ePXlEu1bABoc45CSu8haGAZfcNGvrxDSn5f2xDjX7nNMLfi7/vtx5lwMX/iecNklHxyarRkuwi4cPvsNBXpF8dw1gOQoqJAhou+vYPNmrs1TR/SQAt3pfRkKsT5iB35DQo05JbopICeEO2zodRx9MxWdE46pZd626NP2nabB0X+MqwnFuY4v1ERNZe5CG4hmI1AZ3IzbeEL9xPq1UV1vfTpG6O45s5NK93WZkDLrUxIujlx9bfFExDQhsTB1qxkp/u9pj6axRjGNEvzOGZTd22k7eZw4k3j/XdVwM8s3rUAxGqWvhi+raXuxaIC3YdpBi1WvduyA==",
+    "size": 113,
+    "createdAt": "2026-11-23T10:00:00.000Z"
+  },
+  "nameCases": [
+    {
+      "name": "nom sans extension : extension ajoutée",
+      "input": {
+        "name": "budget",
+        "ext": "csv"
+      },
+      "expect": "ok",
+      "finalName": "budget.csv",
+      "ext": "csv"
+    },
+    {
+      "name": "extension déjà présente : pas doublée",
+      "input": {
+        "name": "budget.csv",
+        "ext": "csv"
+      },
+      "expect": "ok",
+      "finalName": "budget.csv",
+      "ext": "csv"
+    },
+    {
+      "name": "extension déjà présente en majuscules : gardée telle quelle",
+      "input": {
+        "name": "Notes.MD",
+        "ext": "md"
+      },
+      "expect": "ok",
+      "finalName": "Notes.MD",
+      "ext": "md"
+    },
+    {
+      "name": "autre extension de la liste : la bonne est ajoutée",
+      "input": {
+        "name": "notes.txt",
+        "ext": "md"
+      },
+      "expect": "ok",
+      "finalName": "notes.txt.md",
+      "ext": "md"
+    },
+    {
+      "name": "ext avec point et majuscules : normalisée",
+      "input": {
+        "name": "rapport",
+        "ext": ".MD"
+      },
+      "expect": "ok",
+      "finalName": "rapport.md",
+      "ext": "md"
+    },
+    {
+      "name": "espaces autour : retirés",
+      "input": {
+        "name": "  compte rendu  ",
+        "ext": "txt"
+      },
+      "expect": "ok",
+      "finalName": "compte rendu.txt",
+      "ext": "txt"
+    },
+    {
+      "name": "accents et espaces internes : gardés",
+      "input": {
+        "name": "Résumé réunion 12 mars",
+        "ext": "md"
+      },
+      "expect": "ok",
+      "finalName": "Résumé réunion 12 mars.md",
+      "ext": "md"
+    },
+    {
+      "name": "116 caractères + .csv = 120 : accepté",
+      "input": {
+        "name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "ext": "csv"
+      },
+      "expect": "ok",
+      "finalName": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.csv",
+      "ext": "csv"
+    },
+    {
+      "name": "117 caractères + .csv = 121 : refusé",
+      "input": {
+        "name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "ext": "csv"
+      },
+      "expect": "artifact_name"
+    },
+    {
+      "name": "120 caractères multi-octets (é) avec extension : accepté",
+      "input": {
+        "name": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+        "ext": "csv"
+      },
+      "expect": "ok",
+      "finalName": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé.csv",
+      "ext": "csv"
+    },
+    {
+      "name": "chemin relatif",
+      "input": {
+        "name": "../etc/passwd",
+        "ext": "txt"
+      },
+      "expect": "artifact_name"
+    },
+    {
+      "name": "barre oblique",
+      "input": {
+        "name": "dossier/fichier",
+        "ext": "txt"
+      },
+      "expect": "artifact_name"
+    },
+    {
+      "name": "barre oblique inverse",
+      "input": {
+        "name": "dossier\\fichier",
+        "ext": "txt"
+      },
+      "expect": "artifact_name"
+    },
+    {
+      "name": "deux-points",
+      "input": {
+        "name": "C:fichier",
+        "ext": "txt"
+      },
+      "expect": "artifact_name"
+    },
+    {
+      "name": "fichier caché",
+      "input": {
+        "name": ".env",
+        "ext": "txt"
+      },
+      "expect": "artifact_name"
+    },
+    {
+      "name": "point final",
+      "input": {
+        "name": "fichier.",
+        "ext": "txt"
+      },
+      "expect": "artifact_name"
+    },
+    {
+      "name": "vide",
+      "input": {
+        "name": "",
+        "ext": "txt"
+      },
+      "expect": "artifact_name"
+    },
+    {
+      "name": "espaces seuls",
+      "input": {
+        "name": "   ",
+        "ext": "txt"
+      },
+      "expect": "artifact_name"
+    },
+    {
+      "name": "caractère de contrôle",
+      "input": {
+        "name": "bip\u0007",
+        "ext": "txt"
+      },
+      "expect": "artifact_name"
+    },
+    {
+      "name": "retour à la ligne",
+      "input": {
+        "name": "ligne1\nligne2",
+        "ext": "txt"
+      },
+      "expect": "artifact_name"
+    },
+    {
+      "name": "marque bidi RLO",
+      "input": {
+        "name": "fichier‮txt.exe",
+        "ext": "txt"
+      },
+      "expect": "artifact_name"
+    },
+    {
+      "name": "espace de largeur nulle",
+      "input": {
+        "name": "fi​chier",
+        "ext": "txt"
+      },
+      "expect": "artifact_name"
+    },
+    {
+      "name": "format hors liste : exe",
+      "input": {
+        "name": "outil",
+        "ext": "exe"
+      },
+      "expect": "artifact_format"
+    },
+    {
+      "name": "format hors liste : svg (balisage actif)",
+      "input": {
+        "name": "image",
+        "ext": "svg"
+      },
+      "expect": "artifact_format"
+    },
+    {
+      "name": "format hors liste : htm (seul html est listé)",
+      "input": {
+        "name": "page",
+        "ext": "htm"
+      },
+      "expect": "artifact_format"
+    },
+    {
+      "name": "format hors liste : pdf (binaire, PC71)",
+      "input": {
+        "name": "rapport",
+        "ext": "pdf"
+      },
+      "expect": "artifact_format"
+    },
+    {
+      "name": "format vide",
+      "input": {
+        "name": "rapport",
+        "ext": ""
+      },
+      "expect": "artifact_format"
+    },
+    {
+      "name": "html listé : accepté, affiché comme source",
+      "input": {
+        "name": "page",
+        "ext": "html"
+      },
+      "expect": "ok",
+      "finalName": "page.html",
+      "ext": "html"
+    }
+  ],
+  "contentCases": [
+    {
+      "name": "contenu de référence",
+      "content": "poste;montant €\nLocation salle;1200\nTraiteur;850\n",
+      "expect": "ok",
+      "expectSize": 51,
+      "expectSha256": "7e2fea7cf9f39223770dc3a7a428fe203d3efbb53aae7cce51a9d723691a7fac"
+    },
+    {
+      "name": "exactement 262 144 octets ASCII",
+      "fill": "a",
+      "fillLength": 262144,
+      "expect": "ok",
+      "expectSize": 262144,
+      "expectSha256": "dd3dde87623d9a6b354c68c943d189c89c63652d945e7bbdf0986cae91a49521"
+    },
+    {
+      "name": "262 145 octets ASCII",
+      "fill": "a",
+      "fillLength": 262145,
+      "expect": "artifact_too_large"
+    },
+    {
+      "name": "131 072 « é » = 262 144 octets UTF-8 : accepté (la borne compte des octets)",
+      "fill": "é",
+      "fillLength": 131072,
+      "expect": "ok",
+      "expectSize": 262144,
+      "expectSha256": "94914398e4fe14ac182b9e6080caa078bbde122682c352744929d55f7d038d10"
+    },
+    {
+      "name": "131 073 « é » = 262 146 octets UTF-8 : refusé (131 073 caractères seulement)",
+      "fill": "é",
+      "fillLength": 131073,
+      "expect": "artifact_too_large"
+    },
+    {
+      "name": "vide",
+      "content": "",
+      "expect": "artifact_not_text"
+    },
+    {
+      "name": "contient U+0000",
+      "content": "a\u0000b",
+      "expect": "artifact_not_text"
+    },
+    {
+      "name": "HTML actif : accepté tel quel, jamais interprété à l'affichage",
+      "content": "<script>alert(1)</script><img src=x onerror=alert(2)>",
+      "expect": "ok",
+      "expectSize": 53,
+      "expectSha256": "4c9a8d85be18005b008f60bdc54c783672ddd676702d17567b1defcd8b63500c"
+    }
+  ],
+  "encryptionCases": [
+    {
+      "name": "métadonnées, AAD sessionId:artifactId:artifact_meta",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "messageId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b",
+      "fieldName": "artifact_meta",
+      "value": "gcm1:ioqKioqKioqKioqKcFF+U3ivAsucsWV70myxI63uVAYbQNbRumuKTwEfNg4IHxUm/X7gV8Nbp9WWFf3WtPZ8ixs4hHK4JNc72GsfObo+WdZX4S+cY/ePXlEu1bABoc45CSu8haGAZfcNGvrxDSn5f2xDjX7nNMLfi7/vtx5lwMX/iecNklHxyarRkuwi4cPvsNBXpF8dw1gOQoqJAhou+vYPNmrs1TR/SQAt3pfRkKsT5iB35DQo05JbopICeEO2zodRx9MxWdE46pZd626NP2nabB0X+MqwnFuY4v1ERNZe5CG4hmI1AZ3IzbeEL9xPq1UV1vfTpG6O45s5NK93WZkDLrUxIujlx9bfFExDQhsTB1qxkp/u9pj6axRjGNEvzOGZTd22k7eZw4k3j/XdVwM8s3rUAxGqWvhi+raXuxaIC3YdpBi1WvduyA==",
+      "expectClear": "{\"ext\":\"csv\",\"id\":\"8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b\",\"messageId\":\"3c2b1a09-8f7e-4d6c-9b5a-493827161504\",\"name\":\"budget-lancement.csv\",\"sessionId\":\"0f0e0d0c-0b0a-4908-8706-050403020100\",\"sha256\":\"7e2fea7cf9f39223770dc3a7a428fe203d3efbb53aae7cce51a9d723691a7fac\",\"size\":51,\"toolCallId\":\"call_3\",\"v\":1}",
+      "expect": "ok"
+    },
+    {
+      "name": "contenu, AAD sessionId:artifactId:artifact",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "messageId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b",
+      "fieldName": "artifact",
+      "value": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNVvCBXtGwpsE5heft3ZEgMA==",
+      "expectClear": "poste;montant €\nLocation salle;1200\nTraiteur;850\n",
+      "expect": "ok"
+    },
+    {
+      "name": "métadonnées ouvertes comme contenu (échange de champ)",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "messageId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b",
+      "fieldName": "artifact",
+      "value": "gcm1:ioqKioqKioqKioqKcFF+U3ivAsucsWV70myxI63uVAYbQNbRumuKTwEfNg4IHxUm/X7gV8Nbp9WWFf3WtPZ8ixs4hHK4JNc72GsfObo+WdZX4S+cY/ePXlEu1bABoc45CSu8haGAZfcNGvrxDSn5f2xDjX7nNMLfi7/vtx5lwMX/iecNklHxyarRkuwi4cPvsNBXpF8dw1gOQoqJAhou+vYPNmrs1TR/SQAt3pfRkKsT5iB35DQo05JbopICeEO2zodRx9MxWdE46pZd626NP2nabB0X+MqwnFuY4v1ERNZe5CG4hmI1AZ3IzbeEL9xPq1UV1vfTpG6O45s5NK93WZkDLrUxIujlx9bfFExDQhsTB1qxkp/u9pj6axRjGNEvzOGZTd22k7eZw4k3j/XdVwM8s3rUAxGqWvhi+raXuxaIC3YdpBi1WvduyA==",
+      "expect": "field_authentication_failed"
+    },
+    {
+      "name": "contenu ouvert comme métadonnées (échange de champ)",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "messageId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b",
+      "fieldName": "artifact_meta",
+      "value": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNVvCBXtGwpsE5heft3ZEgMA==",
+      "expect": "field_authentication_failed"
+    },
+    {
+      "name": "contenu rejoué sous un autre artifactId",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "messageId": "9f0a1b2c-3d4e-4f60-9b7c-8d9e0f1a2b3c",
+      "fieldName": "artifact",
+      "value": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNVvCBXtGwpsE5heft3ZEgMA==",
+      "expect": "field_authentication_failed"
+    },
+    {
+      "name": "contenu rejoué dans une autre conversation",
+      "sessionId": "1f0e0d0c-0b0a-4908-8706-050403020100",
+      "messageId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b",
+      "fieldName": "artifact",
+      "value": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNVvCBXtGwpsE5heft3ZEgMA==",
+      "expect": "field_authentication_failed"
+    },
+    {
+      "name": "contenu ouvert avec l'artifactId en position de messageId du message porteur",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "messageId": "3c2b1a09-8f7e-4d6c-9b5a-493827161504",
+      "fieldName": "artifact",
+      "value": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNVvCBXtGwpsE5heft3ZEgMA==",
+      "expect": "field_authentication_failed"
+    },
+    {
+      "name": "autre CK",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "messageId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b",
+      "fieldName": "artifact",
+      "value": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNVvCBXtGwpsE5heft3ZEgMA==",
+      "expect": "field_authentication_failed",
+      "ckHex": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d"
+    }
+  ],
+  "verifyCases": [
+    {
+      "name": "artefact de référence",
+      "ref": {
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "messageId": "3c2b1a09-8f7e-4d6c-9b5a-493827161504",
+        "toolCallId": "call_3",
+        "artifactId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b"
+      },
+      "meta": "gcm1:ioqKioqKioqKioqKcFF+U3ivAsucsWV70myxI63uVAYbQNbRumuKTwEfNg4IHxUm/X7gV8Nbp9WWFf3WtPZ8ixs4hHK4JNc72GsfObo+WdZX4S+cY/ePXlEu1bABoc45CSu8haGAZfcNGvrxDSn5f2xDjX7nNMLfi7/vtx5lwMX/iecNklHxyarRkuwi4cPvsNBXpF8dw1gOQoqJAhou+vYPNmrs1TR/SQAt3pfRkKsT5iB35DQo05JbopICeEO2zodRx9MxWdE46pZd626NP2nabB0X+MqwnFuY4v1ERNZe5CG4hmI1AZ3IzbeEL9xPq1UV1vfTpG6O45s5NK93WZkDLrUxIujlx9bfFExDQhsTB1qxkp/u9pj6axRjGNEvzOGZTd22k7eZw4k3j/XdVwM8s3rUAxGqWvhi+raXuxaIC3YdpBi1WvduyA==",
+      "value": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNVvCBXtGwpsE5heft3ZEgMA==",
+      "expect": "ok",
+      "expectMeta": {
+        "id": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b",
+        "name": "budget-lancement.csv",
+        "size": 51,
+        "mimeType": "text/csv",
+        "sha256": "7e2fea7cf9f39223770dc3a7a428fe203d3efbb53aae7cce51a9d723691a7fac"
+      }
+    },
+    {
+      "name": "empreinte différente du contenu",
+      "ref": {
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "messageId": "3c2b1a09-8f7e-4d6c-9b5a-493827161504",
+        "toolCallId": "call_3",
+        "artifactId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b"
+      },
+      "meta": "gcm1:ioqKioqKioqKioqKcFF+U3ivAsucsWV70myxI63uVAYbQNbRumuKTwEfNg4IHxUm/X7gV8Nbp9WWFf3WtPZ8ixs4hHK4JNc72GsfObo+WdZX4S+cY/ePXlEu1bABoc45CSu8haGAZfcNGvrxDSn5f2xDjX7nNMLfi7/vtx5lwMX/iecNklHxyarRkuwi4cPvsNBXpF8dw1gOQoqJAhou+vYPNmrs1TR/SQAt3pfRkKsT5iB35DQo05JbopICeEO2zodRx9MxWdE46pZd626NP2nabB0X+MqwnFuY4v1ERNZe5CG4hmI1AZ3IzbeEL9xPq1UV1vfTpG6O45s5NK93WZkDLrUxIujlx9bfFExDQhsTB1qxkp/u9pj6axRjGNEvzOGZTd22k7eZw4k3j/XdVwM8s3rUAxGqWvhi+raXuxaIC3YdpBi1WvduyA==",
+      "value": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNOARl6UWZfkMI9fWCxBRvvTI=",
+      "expect": "artifact_unreadable"
+    },
+    {
+      "name": "taille annoncée différente",
+      "ref": {
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "messageId": "3c2b1a09-8f7e-4d6c-9b5a-493827161504",
+        "toolCallId": "call_3",
+        "artifactId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b"
+      },
+      "meta": "gcm1:ioqKioqKioqKioqKcFF+U3ivAsucsWV70myxI63uVAYbQNbRumuKTwEfNg4IHxUm/X7gV8Nbp9WWFf3WtPZ8ixs4hHK4JNc72GsfObo+WdZX4S+cY/ePXlEu1bABoc45CSu8haGAZfcNGvrxDSn5f2xDjX7nNMLfi7/vtx5lwMX/iecNklHxyarRkuwi4cPvsNBXpF8dw1gOQoqJAhou+vYPNmrs1TR/SQAt3pfRkKsT5iB35DQo05JbopICeEO2zodRx9MxWdE46pZd626NP2nabB0X+MqwnFuY4v1ERNZe5CG4hmI1AZ3IzbeEL9xPq1UV1vfTpG6O45s5NK93WZkDLrUxIujlx9bfFExDQhsTB1qxkp/u9pj6axRjG9EvzOGZTd22k7eZw4k3j/XdVwM8s3rUAxGqWvhiUTwZtmUjkE9ansQ8rEiF6Q==",
+      "value": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNVvCBXtGwpsE5heft3ZEgMA==",
+      "expect": "artifact_unreadable"
+    },
+    {
+      "name": "métadonnées d'un autre message (déplacement)",
+      "ref": {
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "messageId": "3c2b1a09-8f7e-4d6c-9b5a-493827161504",
+        "toolCallId": "call_3",
+        "artifactId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b"
+      },
+      "meta": "gcm1:ioqKioqKioqKioqKcFF+U3ivAsucsWV70myxI63uVAYbQNbRumuKTwEfNg4IHxUm/X7gV8Nbp9WWFf3WtPZ8ixs4hHK4JNc72GsfObo+WdZX4SibYvaMXVB21bgBr845CSq9gqGBZPQOGvupCij4cG9CjX3nNcLfi7/vtx5lwMX/iecNklHxyarRkuwi4cPvsNBXpF8dw1gOQoqJAhou+vYPNmrs1TR/SQAt3pfRkKsT5iB35DQo05JbopICeEO2zodRx9MxWdE46pZd626NP2nabB0X+MqwnFuY4v1ERNZe5CG4hmI1AZ3IzbeEL9xPq1UV1vfTpG6O45s5NK93WZkDLrUxIujlx9bfFExDQhsTB1qxkp/u9pj6axRjGNEvzOGZTd22k7eZw4k3j/XdVwM8s3rUAxGqWvhivQvBR2xRY5T22vbLi5uCVg==",
+      "value": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNVvCBXtGwpsE5heft3ZEgMA==",
+      "expect": "artifact_unreadable"
+    },
+    {
+      "name": "métadonnées d'un autre appel d'outil",
+      "ref": {
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "messageId": "3c2b1a09-8f7e-4d6c-9b5a-493827161504",
+        "toolCallId": "call_3",
+        "artifactId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b"
+      },
+      "meta": "gcm1:ioqKioqKioqKioqKcFF+U3ivAsucsWV70myxI63uVAYbQNbRumuKTwEfNg4IHxUm/X7gV8Nbp9WWFf3WtPZ8ixs4hHK4JNc72GsfObo+WdZX4S+cY/ePXlEu1bABoc45CSu8haGAZfcNGvrxDSn5f2xDjX7nNMLfi7/vtx5lwMX/iecNklHxyarRkuwi4cPvsNBXpF8dw1gOQoqJAhou+vYPNmrs1TR/SQAt3pfRkKsT5iB35DQo05JbopICeEO2zodRx9MxWdE46pZd626NP2nabB0X+MqwnFuY4v1ERNZe5CG4hmI1AZ3IzbeEL9xPq1UV1vfTpG6O45s5NK93WZkDLrUxIujlx9bfFExDQhsTB1qxkp/u9pj6axRjGNEvzOGZTd22k7eZw4k3j/XdVwM8tHrUAxGqWvhigkC3lJqHaLsMjh3N3+XnOQ==",
+      "value": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNVvCBXtGwpsE5heft3ZEgMA==",
+      "expect": "artifact_unreadable"
+    },
+    {
+      "name": "id des métadonnées différent de la référence",
+      "ref": {
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "messageId": "3c2b1a09-8f7e-4d6c-9b5a-493827161504",
+        "toolCallId": "call_3",
+        "artifactId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b"
+      },
+      "meta": "gcm1:ioqKioqKioqKioqKcFF+U3ivAsucsWV70myxI63uVAcYSdHQuWiLTwAYMQ8IHxYlq37hVMJap9qRFPzft/d7iBg5hXK4JNc72GsfObo+WdZX4S+cY/ePXlEu1bABoc45CSu8haGAZfcNGvrxDSn5f2xDjX7nNMLfi7/vtx5lwMX/iecNklHxyarRkuwi4cPvsNBXpF8dw1gOQoqJAhou+vYPNmrs1TR/SQAt3pfRkKsT5iB35DQo05JbopICeEO2zodRx9MxWdE46pZd626NP2nabB0X+MqwnFuY4v1ERNZe5CG4hmI1AZ3IzbeEL9xPq1UV1vfTpG6O45s5NK93WZkDLrUxIujlx9bfFExDQhsTB1qxkp/u9pj6axRjGNEvzOGZTd22k7eZw4k3j/XdVwM8s3rUAxGqWvhisCyjrFW1cCuhszhtWncMAw==",
+      "value": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNVvCBXtGwpsE5heft3ZEgMA==",
+      "expect": "artifact_unreadable"
+    },
+    {
+      "name": "version 2 inconnue",
+      "ref": {
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "messageId": "3c2b1a09-8f7e-4d6c-9b5a-493827161504",
+        "toolCallId": "call_3",
+        "artifactId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b"
+      },
+      "meta": "gcm1:ioqKioqKioqKioqKcFF+U3ivAsucsWV70myxI63uVAYbQNbRumuKTwEfNg4IHxUm/X7gV8Nbp9WWFf3WtPZ8ixs4hHK4JNc72GsfObo+WdZX4S+cY/ePXlEu1bABoc45CSu8haGAZfcNGvrxDSn5f2xDjX7nNMLfi7/vtx5lwMX/iecNklHxyarRkuwi4cPvsNBXpF8dw1gOQoqJAhou+vYPNmrs1TR/SQAt3pfRkKsT5iB35DQo05JbopICeEO2zodRx9MxWdE46pZd626NP2nabB0X+MqwnFuY4v1ERNZe5CG4hmI1AZ3IzbeEL9xPq1UV1vfTpG6O45s5NK93WZkDLrUxIujlx9bfFExDQhsTB1qxkp/u9pj6axRjGNEvzOGZTd22k7eZw4k3j/XdVwM8s3rUAxGqWvtipcoc3rIXhVR1ab5fhxbErg==",
+      "value": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNVvCBXtGwpsE5heft3ZEgMA==",
+      "expect": "artifact_unreadable"
+    },
+    {
+      "name": "champ inconnu dans les métadonnées",
+      "ref": {
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "messageId": "3c2b1a09-8f7e-4d6c-9b5a-493827161504",
+        "toolCallId": "call_3",
+        "artifactId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b"
+      },
+      "meta": "gcm1:ioqKioqKioqKioqKcFF+U3ivAsucsWV70myxI63uVAYbQNbRumuKTwEfNg4IHxUm/X7gV8Nbp9WWFf3WtPZ8ixs4hHK4JNc72GsfObo+WdZX4S+cY/ePXlEu1bABoc45CSu8haGAZfcNGvrxDSn5f2xDjX7nNMLfi7/vtx5lwMX/iecNklHxyarRkuwi4cPvsNBXpF8dw1gOQoqJAhou+vYPNmrs1TR/SQAt3pfRkKsT5iB35DQo05JbopICeEO2zodRx9MxWdE46pZd626NP2nabB0X+MqwnFuY4v1ERNZe5CG4hmI1AZ3IzbeEL9xPq1UV1vfTpG6O45s5NK93WZkDLrUxIujlx9bfFExDQhsTB1qxkp/u9pj6axRjGNEvzOGZTd22k7eZw4k3j/XdVwM8s3rUAxL6DOsl4iuQLTYyLHknIacjca2rpH8AEvZLi7PG65I2drLdt5fpGrm5qxRekv9a7WA=",
+      "value": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNVvCBXtGwpsE5heft3ZEgMA==",
+      "expect": "artifact_unreadable"
+    },
+    {
+      "name": "extension hors liste dans les métadonnées",
+      "ref": {
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "messageId": "3c2b1a09-8f7e-4d6c-9b5a-493827161504",
+        "toolCallId": "call_3",
+        "artifactId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b"
+      },
+      "meta": "gcm1:ioqKioqKioqKioqKcFF+U3ivAsuMtHR70myxI63uVAYbQNbRumuKTwEfNg4IHxUm/X7gV8Nbp9WWFf3WtPZ8ixs4hHK4JNc72GsfObo+WdZX4S+cY/ePXlEu1bABoc45CSu8haGAZfcNGvrxDSn5f2xDjX7nNMLfi7/vtx5lwMX/iecNklHy1r3Y06Vt98jo7dpLvDRVwxFJAZ/QCEQDrrcYJDi6hHx7FAB23p+EkPwT4ix36Ckj1JBdvpIHalukjt8Cxdc3S8k2/4AH7DnZPiiGd0xB857nzlvMtKBBRI5btya9iTQ0UJ6anuXVe4ZL+1REhPbXomuJtJ9rbKolXMlWcrFhdLfgk8bAAAYbWUlXXAyikp/p8I3zCk86RbRpmrTUQv+7k4TjhYcv27SGChKKvPNHxCrm2i3m6vKbT718",
+      "value": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNVvCBXtGwpsE5heft3ZEgMA==",
+      "expect": "artifact_unreadable"
+    },
+    {
+      "name": "empreinte en majuscules : refusée (hex minuscule exigé)",
+      "ref": {
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "messageId": "3c2b1a09-8f7e-4d6c-9b5a-493827161504",
+        "toolCallId": "call_3",
+        "artifactId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b"
+      },
+      "meta": "gcm1:ioqKioqKioqKioqKcFF+U3ivAsucsWV70myxI63uVAYbQNbRumuKTwEfNg4IHxUm/X7gV8Nbp9WWFf3WtPZ8ixs4hHK4JNc72GsfObo+WdZX4S+cY/ePXlEu1bABoc45CSu8haGAZfcNGvrxDSn5f2xDjX7nNMLfi7/vtx5lwMX/iecNklHxyarRkuwi4cPvsNBXpF8dw1gOQoqJAhou+vYPNmrs1TR/SQAt3pfRkKsT5iB35DQo05JbopICeEO2zodRx9MxWdE46pZd626NP2nabB03+OqQvFu4wv1kRNZe5CG4hmIVIZ3ozZeEL9xvi1UV1tfThE6uw5s5FI9XWbkjDrUxAujFx9bfFExDYhszJ3qxkp/u9pj6axRjGNEvzOGZTd22k7eZw4k3j/XdVwM8s3rUAxGqWvhiVGH5Z2RE947+mb3grE3dHw==",
+      "value": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNVvCBXtGwpsE5heft3ZEgMA==",
+      "expect": "artifact_unreadable"
+    },
+    {
+      "name": "nom avec chemin : lisible, nom assaini à l'affichage",
+      "ref": {
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "messageId": "3c2b1a09-8f7e-4d6c-9b5a-493827161504",
+        "toolCallId": "call_3",
+        "artifactId": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b"
+      },
+      "meta": "gcm1:ioqKioqKioqKioqKcFF+U3ivAsucsWV70myxI63uVAYbQNbRumuKTwEfNg4IHxUm/X7gV8Nbp9WWFf3WtPZ8ixs4hHK4JNc72GsfObo+WdZX4S+cY/ePXlEu1bABoc45CSu8haGAZfcNGvrxDSn5f2xDjX7nNMLfi7/vtx5lwMWz0qxE2Qq+0K/YlP1h597tvJ8GoRhCkkIEX7CET05FrrIFcWru1TJiHVJ+koqHmfoG/yFw7C891Jddu5IEeEW2zIdT1c4jGpt1+tADqGaaPi7SKE8T/c+zxArIvfYQRNhb5nbsgjNmA5qbwrDVL9QaqlRAg/GC9DuN4Ms9Nq13W8sBcuQ3ceK3ydWNFRMTQA5ZREr6xNi/pdeuZQwiRpJh+++aTdez3eHyxMphwcmPGUNB9nrCEBq1Dfd84y1aIzP0EQ+nDr0X",
+      "value": "gcm1:m5ubm5ubm5ubm5ubujHhD9N6JozZZzC+CWxGqjYOGAPB/iULktZLnz0x0HBiOkfnt4xN2CZkOu/zdlQGvppNVvCBXtGwpsE5heft3ZEgMA==",
+      "expect": "ok",
+      "expectMeta": {
+        "id": "8e9f0a1b-2c3d-4e5f-8a6b-7c8d9e0f1a2b",
+        "name": "budget.csv",
+        "size": 51,
+        "mimeType": "text/csv",
+        "sha256": "7e2fea7cf9f39223770dc3a7a428fe203d3efbb53aae7cce51a9d723691a7fac"
+      }
+    }
+  ],
+  "boundCases": [
+    {
+      "name": "value gcm1: de 349 569 caractères (5 + 4·⌈(12 + 262 144 + 16) / 3⌉) : forme acceptée par l'API",
+      "field": "value",
+      "valuePrefix": "gcm1:",
+      "fill": "A",
+      "fillLength": 349564,
+      "expect": "ok"
+    },
+    {
+      "name": "value gcm1: de 349 573 caractères : refusée par l'API",
+      "field": "value",
+      "valuePrefix": "gcm1:",
+      "fill": "A",
+      "fillLength": 349568,
+      "expect": "artifact_too_large"
+    },
+    {
+      "name": "meta gcm1: de 1 409 caractères (clair ≤ 1 024 octets) : forme acceptée",
+      "field": "meta",
+      "valuePrefix": "gcm1:",
+      "fill": "A",
+      "fillLength": 1404,
+      "expect": "ok"
+    },
+    {
+      "name": "meta gcm1: de 1 413 caractères : refusée",
+      "field": "meta",
+      "valuePrefix": "gcm1:",
+      "fill": "A",
+      "fillLength": 1408,
+      "expect": "invalid_body"
+    },
+    {
+      "name": "value sans préfixe gcm1: : refusée",
+      "field": "value",
+      "valuePrefix": "",
+      "fill": "A",
+      "fillLength": 64,
+      "expect": "invalid_body"
+    }
+  ],
+  "quotaCases": [
+    {
+      "name": "20e artefact de la conversation : accepté",
+      "existing": 19,
+      "expect": "ok"
+    },
+    {
+      "name": "21e artefact de la conversation : refusé",
+      "existing": 20,
+      "expect": "artifact_quota"
+    },
+    {
+      "name": "5e artefact du tour : accepté (contrôle du worker)",
+      "sentThisTurn": 4,
+      "expect": "ok"
+    },
+    {
+      "name": "6e artefact du tour : refusé (contrôle du worker)",
+      "sentThisTurn": 5,
+      "expect": "artifact_turn_limit"
+    },
+    {
+      "name": "même id, même valeur : rejeu idempotent",
+      "replay": "same",
+      "expect": "ok"
+    },
+    {
+      "name": "même id, autre valeur : refusé",
+      "replay": "different",
+      "expect": "artifact_exists"
+    }
+  ]
+}
