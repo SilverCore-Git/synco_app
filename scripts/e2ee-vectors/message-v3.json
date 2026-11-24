@@ -1,0 +1,247 @@
+{
+  "description": "Formats m3 (salon) et d3 (MP) des messages écrits par l'agent, mention « avec Synco AI » (12 §4.3, L00i, PC88, PC35). Octets exacts de l'AAD et de la signature, analyse du champ iv / nonce, politique de vérification, contrôles de l'API. Les chiffrés et signatures réels sont à produire par le générateur TypeScript de L15f (synco_app, messageAuth.ts) et rejoués par la crate (L15-rt) : ici, iv, chiffré et signature sont des valeurs de forme seulement.",
+  "parseCases": [
+    {
+      "name": "m3 auteur ai, rev 0",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.ai.c2lnbmF0dXJlLWRlLXRlc3Q=.0",
+      "expect": "ok",
+      "parsed": {
+        "iv": "AAECAwQFBgcICQoL",
+        "clientMsgId": "5f1e2d3c-4b5a-4968-8776-655443322110",
+        "author": "ai",
+        "signature": "c2lnbmF0dXJlLWRlLXRlc3Q=",
+        "rev": 0
+      }
+    },
+    {
+      "name": "m3 auteur rt1, rev 3",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d.c2lnbmF0dXJlLWRlLXRlc3Q=.3",
+      "expect": "ok",
+      "parsed": {
+        "iv": "AAECAwQFBgcICQoL",
+        "clientMsgId": "5f1e2d3c-4b5a-4968-8776-655443322110",
+        "author": "rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+        "signature": "c2lnbmF0dXJlLWRlLXRlc3Q=",
+        "rev": 3
+      }
+    },
+    {
+      "name": "m3 sans rev (4 parties)",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.ai.c2lnbmF0dXJlLWRlLXRlc3Q=",
+      "expect": "invalid_format"
+    },
+    {
+      "name": "m3 rev avec zéro de tête",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.ai.c2lnbmF0dXJlLWRlLXRlc3Q=.01",
+      "expect": "invalid_format"
+    },
+    {
+      "name": "m3 rev négative",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.ai.c2lnbmF0dXJlLWRlLXRlc3Q=.-1",
+      "expect": "invalid_format"
+    },
+    {
+      "name": "m3 signature vide",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.ai..0",
+      "expect": "invalid",
+      "note": "format lisible mais signature vide : état invalid"
+    },
+    {
+      "name": "m3 auteur inconnu u",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.u.c2lnbmF0dXJlLWRlLXRlc3Q=.0",
+      "expect": "invalid_format"
+    },
+    {
+      "name": "m3 auteur rt1 sans identifiant",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.rt1:.c2lnbmF0dXJlLWRlLXRlc3Q=.0",
+      "expect": "invalid_format"
+    },
+    {
+      "name": "m3 auteur rt1 identifiant non UUID",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.rt1:abc.c2lnbmF0dXJlLWRlLXRlc3Q=.0",
+      "expect": "invalid_format"
+    },
+    {
+      "name": "m3 six parties",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.ai.c2lnbmF0dXJlLWRlLXRlc3Q=.0.x",
+      "expect": "invalid_format"
+    },
+    {
+      "name": "m2 relu comme avant",
+      "iv": "m2.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.c2lnbmF0dXJlLWRlLXRlc3Q=",
+      "expect": "ok_m2"
+    },
+    {
+      "name": "ancien iv base64 seul",
+      "iv": "AAECAwQFBgcICQoL",
+      "expect": "ok_legacy"
+    }
+  ],
+  "dmParseCases": [
+    {
+      "name": "d3 auteur ai",
+      "nonce": "d3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.ai.c2lnbmF0dXJlLWRlLXRlc3Q=.0",
+      "expect": "ok"
+    },
+    {
+      "name": "d3 auteur rt1 : refusé (aucune MP en mode autonome)",
+      "nonce": "d3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d.c2lnbmF0dXJlLWRlLXRlc3Q=.0",
+      "expect": "invalid_format"
+    }
+  ],
+  "bytesCases": [
+    {
+      "name": "salon, auteur ai, rev 0",
+      "threadId": "cm3threadexample000000001",
+      "senderId": "cm3userexample00000000001",
+      "clientMsgId": "5f1e2d3c-4b5a-4968-8776-655443322110",
+      "author": "ai",
+      "ivB64": "AAECAwQFBgcICQoL",
+      "ciphertextB64": "Y2hpZmZyZS1kZS10ZXN0",
+      "rev": 0,
+      "aad": "synco-msg-v3|cm3threadexample000000001|cm3userexample00000000001|5f1e2d3c-4b5a-4968-8776-655443322110|ai|rev:0",
+      "signed": "synco-sig-v2|thread|cm3threadexample000000001|cm3userexample00000000001|5f1e2d3c-4b5a-4968-8776-655443322110|ai|AAECAwQFBgcICQoL|Y2hpZmZyZS1kZS10ZXN0|rev:0"
+    },
+    {
+      "name": "salon, auteur rt1, rev 2",
+      "threadId": "cm3threadexample000000001",
+      "senderId": "cm3userexample00000000001",
+      "clientMsgId": "5f1e2d3c-4b5a-4968-8776-655443322110",
+      "author": "rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "ivB64": "AAECAwQFBgcICQoL",
+      "ciphertextB64": "Y2hpZmZyZS1kZS10ZXN0",
+      "rev": 2,
+      "aad": "synco-msg-v3|cm3threadexample000000001|cm3userexample00000000001|5f1e2d3c-4b5a-4968-8776-655443322110|rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d|rev:2",
+      "signed": "synco-sig-v2|thread|cm3threadexample000000001|cm3userexample00000000001|5f1e2d3c-4b5a-4968-8776-655443322110|rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d|AAECAwQFBgcICQoL|Y2hpZmZyZS1kZS10ZXN0|rev:2"
+    },
+    {
+      "name": "MP, auteur ai, rev 0",
+      "senderId": "cm3userexample00000000001",
+      "recipientId": "cm3userexample00000000002",
+      "clientMsgId": "5f1e2d3c-4b5a-4968-8776-655443322110",
+      "ivB64": "AAECAwQFBgcICQoL",
+      "ciphertext": "Y2hpZmZyZS1kZS10ZXN0",
+      "encryptedAesKey": "a2V5LXBhaXI=",
+      "selfEncryptedAesKey": "a2V5LW1vaQ==",
+      "rev": 0,
+      "aad": "synco-dm-v3|cm3userexample00000000001|cm3userexample00000000002|5f1e2d3c-4b5a-4968-8776-655443322110|ai|rev:0",
+      "signed": "synco-sig-v2|dm|cm3userexample00000000001|cm3userexample00000000002|5f1e2d3c-4b5a-4968-8776-655443322110|ai|AAECAwQFBgcICQoL|Y2hpZmZyZS1kZS10ZXN0|a2V5LXBhaXI=|a2V5LW1vaQ==|rev:0"
+    }
+  ],
+  "verifyPolicy": [
+    {
+      "author": "ai",
+      "signature": "valide (clé d'identité de senderId)",
+      "expect": "verified",
+      "label": "avec Synco AI"
+    },
+    {
+      "author": "ai",
+      "signature": "vide",
+      "expect": "invalid"
+    },
+    {
+      "author": "rt1",
+      "mandate": "v2 auto, userId = senderId, orgId = org du salon",
+      "signature": "valide (csk)",
+      "expect": "verified",
+      "label": "avec Synco AI · mode autonome"
+    },
+    {
+      "author": "rt1",
+      "mandate": "v2 plan",
+      "signature": "valide (csk)",
+      "expect": "invalid"
+    },
+    {
+      "author": "rt1",
+      "mandate": "v1",
+      "signature": "valide (csk)",
+      "expect": "unsigned",
+      "label": "avec Synco AI · mode autonome (non vérifié)"
+    },
+    {
+      "author": "rt1",
+      "mandate": "v2 auto, userId ≠ senderId",
+      "signature": "valide (csk)",
+      "expect": "invalid"
+    },
+    {
+      "author": "rt1",
+      "mandate": "v2 auto, autre org",
+      "signature": "valide (csk)",
+      "expect": "invalid"
+    },
+    {
+      "author": "rt1",
+      "mandate": "v2 auto",
+      "signature": "signée par la clé d'identité de l'utilisateur",
+      "expect": "invalid"
+    },
+    {
+      "author": "rt1",
+      "mandate": "v2 auto, expiré depuis",
+      "signature": "valide (csk)",
+      "expect": "verified",
+      "label": "avec Synco AI · mode autonome"
+    }
+  ],
+  "apiCases": [
+    {
+      "name": "canal du runtime : m3 rt1 de la délégation de l'autorisation, sans déclaration td",
+      "channel": "runtime",
+      "authDelegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d.c2lnbmF0dXJlLWRlLXRlc3Q=.0",
+      "expect": "action_not_accepted",
+      "note": "L00j, PC94 (12 §10.7) : l'auteur passe le contrôle invalid_body, mais la septième partie td est obligatoire sur le canal du runtime ; était ok avant PC94"
+    },
+    {
+      "name": "canal du runtime : m3 rt1 de la délégation de l'autorisation, avec la déclaration rangée à la décision",
+      "channel": "runtime",
+      "authDelegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "storedTextDeclaration": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d.c2lnbmF0dXJlLWRlLXRlc3Q=.0.td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "expect": "ok",
+      "note": "L00j : déclaration de text-declaration.json (declarationCases[0])"
+    },
+    {
+      "name": "canal du runtime : m3 rt1 d'une autre délégation",
+      "channel": "runtime",
+      "authDelegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.rt1:b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e.c2lnbmF0dXJlLWRlLXRlc3Q=.0",
+      "expect": "invalid_body"
+    },
+    {
+      "name": "canal du runtime : m3 ai",
+      "channel": "runtime",
+      "authDelegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.ai.c2lnbmF0dXJlLWRlLXRlc3Q=.0",
+      "expect": "invalid_body"
+    },
+    {
+      "name": "canal du runtime : m2 (se présenterait comme humain)",
+      "channel": "runtime",
+      "authDelegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "iv": "m2.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.c2lnbmF0dXJlLWRlLXRlc3Q=",
+      "expect": "invalid_body"
+    },
+    {
+      "name": "socket utilisateur : m3 ai",
+      "channel": "user",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.ai.c2lnbmF0dXJlLWRlLXRlc3Q=.0",
+      "expect": "ok"
+    },
+    {
+      "name": "socket utilisateur : m3 rt1",
+      "channel": "user",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d.c2lnbmF0dXJlLWRlLXRlc3Q=.0",
+      "expect": "invalid_body"
+    },
+    {
+      "name": "socket utilisateur : m2",
+      "channel": "user",
+      "iv": "m2.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.c2lnbmF0dXJlLWRlLXRlc3Q=",
+      "expect": "ok"
+    }
+  ]
+}

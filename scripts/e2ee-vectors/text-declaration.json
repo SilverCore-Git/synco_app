@@ -1,0 +1,1013 @@
+{
+  "description": "Déclaration signée du texte d'un message autonome (12 §10.7, L00j, PC94). Sel dérivé de CK, empreinte salée du texte exact, déclaration JCS signée ECDSA P-256 par la clé d'identité de l'utilisateur, septième partie du iv m3 rt1, enveloppe du clair, vérification par le lecteur, contrôles de l'API, exécutant. Signatures réelles, « vérification seulement » (README §1). Produit par un générateur jetable (bun, WebCrypto), hors dépôt ; L15f le reproduit avec le code réel.",
+  "keys": {
+    "userSignKey": {
+      "privateScalarHex": "1111111111111111111111111111111111111111111111111111111111111111",
+      "publicRawHex": "040217e617f0b6443928278f96999e69a23a4f2c152bdf6d6cdf66e5b80282d4ed194a7debcb97712d2dda3ca85aa8765a56f45fc758599652f2897c65306e5794",
+      "spkiHex": "3059301306072a8648ce3d020106082a8648ce3d030107034200040217e617f0b6443928278f96999e69a23a4f2c152bdf6d6cdf66e5b80282d4ed194a7debcb97712d2dda3ca85aa8765a56f45fc758599652f2897c65306e5794"
+    },
+    "otherMemberSignKey": {
+      "privateScalarHex": "3333333333333333333333333333333333333333333333333333333333333333",
+      "publicRawHex": "0451a7580833898ea1b183cbd7350a4099078c6ef1c1e18e970cd7683035f25e7d0110522712b0b5a7cff081685486984a94e6831edac46e7360fa9d834a7a81a1",
+      "spkiHex": "3059301306072a8648ce3d020106082a8648ce3d0301070342000451a7580833898ea1b183cbd7350a4099078c6ef1c1e18e970cd7683035f25e7d0110522712b0b5a7cff081685486984a94e6831edac46e7360fa9d834a7a81a1"
+    },
+    "ckHex": "2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  "ids": {
+    "orgId": "cm3orgexample000000000001",
+    "userId": "cm3userexample00000000001",
+    "otherUserId": "cm3userexample00000000002",
+    "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+    "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+    "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+    "threadId": "cm3threadexample000000001",
+    "otherThreadId": "cm3threadexample000000002",
+    "messageId": "cm3messageexample00000001",
+    "replyToId": "cm3messageexample00000002"
+  },
+  "texts": {
+    "T1": "Bonjour à tous, la réunion est déplacée à 15 h.",
+    "T2": "Correction : 16 h."
+  },
+  "saltCases": [
+    {
+      "name": "sel de l'action 1",
+      "ckHex": "2222222222222222222222222222222222222222222222222222222222222222",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+      "n": 1,
+      "info": "synco-text-salt-v1|0f0e0d0c-0b0a-4908-8706-050403020100|6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9|1",
+      "saltHex": "eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6"
+    },
+    {
+      "name": "sel de l'action 2",
+      "ckHex": "2222222222222222222222222222222222222222222222222222222222222222",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+      "n": 2,
+      "info": "synco-text-salt-v1|0f0e0d0c-0b0a-4908-8706-050403020100|6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9|2",
+      "saltHex": "5963c4da9ff48aacbcb652087ee13f69799d6070897a2a72bb8e643c48a4f938"
+    },
+    {
+      "name": "sel de l'action 3",
+      "ckHex": "2222222222222222222222222222222222222222222222222222222222222222",
+      "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+      "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+      "n": 3,
+      "info": "synco-text-salt-v1|0f0e0d0c-0b0a-4908-8706-050403020100|6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9|3",
+      "saltHex": "c86e2f5218b4b51ebd3e4ea1b5d033ad3307754ed8116c26356f2584d44285fe"
+    }
+  ],
+  "commitCases": [
+    {
+      "name": "texte simple",
+      "saltHex": "eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6",
+      "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+      "textUtf8Hex": "426f6e6a6f757220c3a020746f75732c206c612072c3a9756e696f6e206573742064c3a9706c6163c3a96520c3a020313520682e",
+      "textCommitHex": "5498f21a77379ba2e9f7cdee5270a504741c902888f4ffc76addb4e4d9d34551"
+    },
+    {
+      "name": "même texte, autre sel",
+      "saltHex": "5963c4da9ff48aacbcb652087ee13f69799d6070897a2a72bb8e643c48a4f938",
+      "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+      "textUtf8Hex": "426f6e6a6f757220c3a020746f75732c206c612072c3a9756e696f6e206573742064c3a9706c6163c3a96520c3a020313520682e",
+      "textCommitHex": "6c59cbc92648d1e4456d0befb0296e43a21300c21fd574d44427db70ec56f1d0"
+    },
+    {
+      "name": "NFC (é précomposé)",
+      "saltHex": "eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6",
+      "text": "Réunion",
+      "textUtf8Hex": "52c3a9756e696f6e",
+      "textCommitHex": "09338d03b72761a4a1e1a84a437cc14740474a27f2ba1133ab6350fafbfd3eb1"
+    },
+    {
+      "name": "NFD (e + accent combinant) : autre empreinte, aucune normalisation",
+      "saltHex": "eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6",
+      "text": "Réunion",
+      "textUtf8Hex": "5265cc81756e696f6e",
+      "textCommitHex": "765e2d0d2e8e01b707d967c94f9c6c502fc8dba4f9fd7e8c8d645096db8b61f2"
+    },
+    {
+      "name": "fin de ligne CRLF conservée",
+      "saltHex": "eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6",
+      "text": "ligne 1\r\nligne 2",
+      "textUtf8Hex": "6c69676e6520310d0a6c69676e652032",
+      "textCommitHex": "816d819e2a837aff321892dddc5da00e995e3b97a1b1cbc70475056a4441e9ae"
+    },
+    {
+      "name": "espace final conservé",
+      "saltHex": "eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6",
+      "text": "Bonjour à tous, la réunion est déplacée à 15 h. ",
+      "textUtf8Hex": "426f6e6a6f757220c3a020746f75732c206c612072c3a9756e696f6e206573742064c3a9706c6163c3a96520c3a020313520682e20",
+      "textCommitHex": "5d8f863a342dabfda4d7212a775323bb4b16aa141121ce42b4a4ca58ba53fc0a"
+    },
+    {
+      "name": "emoji (hors BMP)",
+      "saltHex": "eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6",
+      "text": "Bravo 🎉",
+      "textUtf8Hex": "427261766f20f09f8e89",
+      "textCommitHex": "7d57bc4cf2b85c911ee442e7670b913d264f5c343ae5fa2264ab4b57156788b1"
+    }
+  ],
+  "declarationCases": [
+    {
+      "name": "message.send, salon fixé",
+      "declaration": {
+        "v": 1,
+        "orgId": "cm3orgexample000000000001",
+        "userId": "cm3userexample00000000001",
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "n": 1,
+        "kind": "message.send",
+        "target": {
+          "threadId": "cm3threadexample000000001"
+        },
+        "textCommit": "5498f21a77379ba2e9f7cdee5270a504741c902888f4ffc76addb4e4d9d34551"
+      },
+      "canonical": "{\"kind\":\"message.send\",\"n\":1,\"orgId\":\"cm3orgexample000000000001\",\"planId\":\"6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9\",\"target\":{\"threadId\":\"cm3threadexample000000001\"},\"textCommit\":\"5498f21a77379ba2e9f7cdee5270a504741c902888f4ffc76addb4e4d9d34551\",\"userId\":\"cm3userexample00000000001\",\"v\":1}",
+      "signed": "synco-text-decl-v1|{\"kind\":\"message.send\",\"n\":1,\"orgId\":\"cm3orgexample000000000001\",\"planId\":\"6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9\",\"target\":{\"threadId\":\"cm3threadexample000000001\"},\"textCommit\":\"5498f21a77379ba2e9f7cdee5270a504741c902888f4ffc76addb4e4d9d34551\",\"userId\":\"cm3userexample00000000001\",\"v\":1}",
+      "signatureB64u": "OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "segment": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "targetCanonical": "{\"kind\":\"message.send\",\"target\":{\"threadId\":\"cm3threadexample000000001\"}}",
+      "targetDigestHex": "a019570dffea24d7cf6b52c60da980efad1c9fa860a57d3e88007cd35214a533"
+    },
+    {
+      "name": "message.send en réponse",
+      "declaration": {
+        "v": 1,
+        "orgId": "cm3orgexample000000000001",
+        "userId": "cm3userexample00000000001",
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "n": 3,
+        "kind": "message.send",
+        "target": {
+          "threadId": "cm3threadexample000000001",
+          "replyTo": "cm3messageexample00000002"
+        },
+        "textCommit": "96cfc2de2a3248d58d59e31d9c9b4979247a390d78ae8788b5c5ce288eeb83a9"
+      },
+      "canonical": "{\"kind\":\"message.send\",\"n\":3,\"orgId\":\"cm3orgexample000000000001\",\"planId\":\"6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9\",\"target\":{\"replyTo\":\"cm3messageexample00000002\",\"threadId\":\"cm3threadexample000000001\"},\"textCommit\":\"96cfc2de2a3248d58d59e31d9c9b4979247a390d78ae8788b5c5ce288eeb83a9\",\"userId\":\"cm3userexample00000000001\",\"v\":1}",
+      "signed": "synco-text-decl-v1|{\"kind\":\"message.send\",\"n\":3,\"orgId\":\"cm3orgexample000000000001\",\"planId\":\"6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9\",\"target\":{\"replyTo\":\"cm3messageexample00000002\",\"threadId\":\"cm3threadexample000000001\"},\"textCommit\":\"96cfc2de2a3248d58d59e31d9c9b4979247a390d78ae8788b5c5ce288eeb83a9\",\"userId\":\"cm3userexample00000000001\",\"v\":1}",
+      "signatureB64u": "YuG3hCmIpDTtIKeEThMzxYB2mzuuy8JBTSa62sAs0HnpiUVOdKV_TWQc9eVWbH5rXKpVGIVgfjflbiqNFDzWhA",
+      "segment": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6Mywib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InJlcGx5VG8iOiJjbTNtZXNzYWdlZXhhbXBsZTAwMDAwMDAyIiwidGhyZWFkSWQiOiJjbTN0aHJlYWRleGFtcGxlMDAwMDAwMDAxIn0sInRleHRDb21taXQiOiI5NmNmYzJkZTJhMzI0OGQ1OGQ1OWUzMWQ5YzliNDk3OTI0N2EzOTBkNzhhZTg3ODhiNWM1Y2UyODhlZWI4M2E5IiwidXNlcklkIjoiY20zdXNlcmV4YW1wbGUwMDAwMDAwMDAwMSIsInYiOjF9:YuG3hCmIpDTtIKeEThMzxYB2mzuuy8JBTSa62sAs0HnpiUVOdKV_TWQc9eVWbH5rXKpVGIVgfjflbiqNFDzWhA",
+      "targetCanonical": "{\"kind\":\"message.send\",\"target\":{\"replyTo\":\"cm3messageexample00000002\",\"threadId\":\"cm3threadexample000000001\"}}",
+      "targetDigestHex": "162cccbe38246135666ff4e0a00f18e0cc8202761d63df567525e5473fc4836d"
+    },
+    {
+      "name": "message.edit",
+      "declaration": {
+        "v": 1,
+        "orgId": "cm3orgexample000000000001",
+        "userId": "cm3userexample00000000001",
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "n": 2,
+        "kind": "message.edit",
+        "target": {
+          "messageId": "cm3messageexample00000001"
+        },
+        "textCommit": "671d86294f845cad246a154849bc6f4c3ccb47b633bec09036ac0c35490ed17a"
+      },
+      "canonical": "{\"kind\":\"message.edit\",\"n\":2,\"orgId\":\"cm3orgexample000000000001\",\"planId\":\"6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9\",\"target\":{\"messageId\":\"cm3messageexample00000001\"},\"textCommit\":\"671d86294f845cad246a154849bc6f4c3ccb47b633bec09036ac0c35490ed17a\",\"userId\":\"cm3userexample00000000001\",\"v\":1}",
+      "signed": "synco-text-decl-v1|{\"kind\":\"message.edit\",\"n\":2,\"orgId\":\"cm3orgexample000000000001\",\"planId\":\"6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9\",\"target\":{\"messageId\":\"cm3messageexample00000001\"},\"textCommit\":\"671d86294f845cad246a154849bc6f4c3ccb47b633bec09036ac0c35490ed17a\",\"userId\":\"cm3userexample00000000001\",\"v\":1}",
+      "signatureB64u": "6z-snOeoCE63YsgpsHxVZcy3-Mt0wtsBHSK6sJgwJ-Q5u5f013a3WjuhEfs-MeCcQiDV_I5AjHuJjHQc9g59hw",
+      "segment": "td1:eyJraW5kIjoibWVzc2FnZS5lZGl0IiwibiI6Miwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7Im1lc3NhZ2VJZCI6ImNtM21lc3NhZ2VleGFtcGxlMDAwMDAwMDEifSwidGV4dENvbW1pdCI6IjY3MWQ4NjI5NGY4NDVjYWQyNDZhMTU0ODQ5YmM2ZjRjM2NjYjQ3YjYzM2JlYzA5MDM2YWMwYzM1NDkwZWQxN2EiLCJ1c2VySWQiOiJjbTN1c2VyZXhhbXBsZTAwMDAwMDAwMDAxIiwidiI6MX0:6z-snOeoCE63YsgpsHxVZcy3-Mt0wtsBHSK6sJgwJ-Q5u5f013a3WjuhEfs-MeCcQiDV_I5AjHuJjHQc9g59hw",
+      "targetCanonical": "{\"kind\":\"message.edit\",\"target\":{\"messageId\":\"cm3messageexample00000001\"}}",
+      "targetDigestHex": "a94395f1ed5d09cbe4f04e5c26deef8fd344524390dd4e59f478ec30dbced6e5"
+    },
+    {
+      "name": "message.edit, message venu par argsRefs",
+      "declaration": {
+        "v": 1,
+        "orgId": "cm3orgexample000000000001",
+        "userId": "cm3userexample00000000001",
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "n": 2,
+        "kind": "message.edit",
+        "target": {},
+        "textCommit": "671d86294f845cad246a154849bc6f4c3ccb47b633bec09036ac0c35490ed17a",
+        "argsRefs": {
+          "messageId": "$1.id"
+        }
+      },
+      "canonical": "{\"argsRefs\":{\"messageId\":\"$1.id\"},\"kind\":\"message.edit\",\"n\":2,\"orgId\":\"cm3orgexample000000000001\",\"planId\":\"6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9\",\"target\":{},\"textCommit\":\"671d86294f845cad246a154849bc6f4c3ccb47b633bec09036ac0c35490ed17a\",\"userId\":\"cm3userexample00000000001\",\"v\":1}",
+      "signed": "synco-text-decl-v1|{\"argsRefs\":{\"messageId\":\"$1.id\"},\"kind\":\"message.edit\",\"n\":2,\"orgId\":\"cm3orgexample000000000001\",\"planId\":\"6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9\",\"target\":{},\"textCommit\":\"671d86294f845cad246a154849bc6f4c3ccb47b633bec09036ac0c35490ed17a\",\"userId\":\"cm3userexample00000000001\",\"v\":1}",
+      "signatureB64u": "oSIZIFH__JJo44knj5ma2psCVXmHAF_KcPktqy1UsLYugk0CqK0zDC2kk4tOeOScdTB12jsYnl0qclhFr1_shw",
+      "segment": "td1:eyJhcmdzUmVmcyI6eyJtZXNzYWdlSWQiOiIkMS5pZCJ9LCJraW5kIjoibWVzc2FnZS5lZGl0IiwibiI6Miwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7fSwidGV4dENvbW1pdCI6IjY3MWQ4NjI5NGY4NDVjYWQyNDZhMTU0ODQ5YmM2ZjRjM2NjYjQ3YjYzM2JlYzA5MDM2YWMwYzM1NDkwZWQxN2EiLCJ1c2VySWQiOiJjbTN1c2VyZXhhbXBsZTAwMDAwMDAwMDAxIiwidiI6MX0:oSIZIFH__JJo44knj5ma2psCVXmHAF_KcPktqy1UsLYugk0CqK0zDC2kk4tOeOScdTB12jsYnl0qclhFr1_shw",
+      "targetCanonical": "{\"argsRefs\":{\"messageId\":\"$1.id\"},\"kind\":\"message.edit\",\"target\":{}}",
+      "targetDigestHex": "b8018ee4564e527805d5a3782839cd929805b99812a3401421f46e17c913c826"
+    },
+    {
+      "name": "message.send, salon venu par argsRefs",
+      "declaration": {
+        "v": 1,
+        "orgId": "cm3orgexample000000000001",
+        "userId": "cm3userexample00000000001",
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "n": 1,
+        "kind": "message.send",
+        "target": {},
+        "textCommit": "5498f21a77379ba2e9f7cdee5270a504741c902888f4ffc76addb4e4d9d34551",
+        "argsRefs": {
+          "threadId": "$4.id"
+        }
+      },
+      "canonical": "{\"argsRefs\":{\"threadId\":\"$4.id\"},\"kind\":\"message.send\",\"n\":1,\"orgId\":\"cm3orgexample000000000001\",\"planId\":\"6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9\",\"target\":{},\"textCommit\":\"5498f21a77379ba2e9f7cdee5270a504741c902888f4ffc76addb4e4d9d34551\",\"userId\":\"cm3userexample00000000001\",\"v\":1}",
+      "signed": "synco-text-decl-v1|{\"argsRefs\":{\"threadId\":\"$4.id\"},\"kind\":\"message.send\",\"n\":1,\"orgId\":\"cm3orgexample000000000001\",\"planId\":\"6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9\",\"target\":{},\"textCommit\":\"5498f21a77379ba2e9f7cdee5270a504741c902888f4ffc76addb4e4d9d34551\",\"userId\":\"cm3userexample00000000001\",\"v\":1}",
+      "signatureB64u": "mQx7amAvMYeVBWT4UOdx33wKfkJlqc5em8GbCP4voRkAuPmBFUxcRrpdLA7iCnvZfSIumnxEWgr0a6hUZJx-Zg",
+      "segment": "td1:eyJhcmdzUmVmcyI6eyJ0aHJlYWRJZCI6IiQ0LmlkIn0sImtpbmQiOiJtZXNzYWdlLnNlbmQiLCJuIjoxLCJvcmdJZCI6ImNtM29yZ2V4YW1wbGUwMDAwMDAwMDAwMDEiLCJwbGFuSWQiOiI2YzJkM2U0Zi01MDYxLTRiNzItOGM4My1hNGI1YzZkN2U4ZjkiLCJ0YXJnZXQiOnt9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:mQx7amAvMYeVBWT4UOdx33wKfkJlqc5em8GbCP4voRkAuPmBFUxcRrpdLA7iCnvZfSIumnxEWgr0a6hUZJx-Zg",
+      "targetCanonical": "{\"argsRefs\":{\"threadId\":\"$4.id\"},\"kind\":\"message.send\",\"target\":{}}",
+      "targetDigestHex": "e798628517defba8059bbb62229ce9e403e488066701688bf16248ca50a68e86"
+    }
+  ],
+  "plaintextCases": [
+    {
+      "name": "enveloppe valide",
+      "plaintext": "{\"salt\":\"eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\"}",
+      "expect": "ok",
+      "saltHex": "eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6",
+      "text": "Bonjour à tous, la réunion est déplacée à 15 h."
+    },
+    {
+      "name": "clé en trop",
+      "plaintext": "{\"salt\":\"eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\",\"x\":1}",
+      "expect": "invalid_envelope"
+    },
+    {
+      "name": "sel en majuscules",
+      "plaintext": "{\"salt\":\"EAF4602DFCD3B9E1C8307E97E703592B88DF75A3541EDB04C31FECD72B50F4F6\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\"}",
+      "expect": "invalid_envelope"
+    },
+    {
+      "name": "sel trop court",
+      "plaintext": "{\"salt\":\"f4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\"}",
+      "expect": "invalid_envelope"
+    },
+    {
+      "name": "texte non chaîne",
+      "plaintext": "{\"salt\":\"eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\",\"text\":5}",
+      "expect": "invalid_envelope"
+    },
+    {
+      "name": "texte brut (pas une enveloppe)",
+      "plaintext": "Bonjour à tous, la réunion est déplacée à 15 h.",
+      "expect": "invalid_envelope"
+    },
+    {
+      "name": "clés dans un autre ordre (non canonique)",
+      "plaintext": "{\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\",\"salt\":\"eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\"}",
+      "expect": "invalid_envelope"
+    }
+  ],
+  "cskBytesCases": [
+    {
+      "name": "octets signés par la csk avec la déclaration (rev 0)",
+      "threadId": "cm3threadexample000000001",
+      "senderId": "cm3userexample00000000001",
+      "clientMsgId": "5f1e2d3c-4b5a-4968-8776-655443322110",
+      "author": "rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "ivB64": "AAECAwQFBgcICQoL",
+      "ciphertextB64": "Y2hpZmZyZS1kZS10ZXN0",
+      "rev": 0,
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d.c2lnbmF0dXJlLWRlLXRlc3Q=.0.td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "signed": "synco-sig-v2|thread|cm3threadexample000000001|cm3userexample00000000001|5f1e2d3c-4b5a-4968-8776-655443322110|rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d|AAECAwQFBgcICQoL|Y2hpZmZyZS1kZS10ZXN0|rev:0|td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "aad": "synco-msg-v3|cm3threadexample000000001|cm3userexample00000000001|5f1e2d3c-4b5a-4968-8776-655443322110|rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d|rev:0"
+    }
+  ],
+  "parseCases": [
+    {
+      "name": "m3 rt1 avec déclaration (7 parties)",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d.c2lnbmF0dXJlLWRlLXRlc3Q=.0.td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "expect": "ok",
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ"
+    },
+    {
+      "name": "m3 rt1 sans déclaration (ancien format L00i)",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d.c2lnbmF0dXJlLWRlLXRlc3Q=.0",
+      "expect": "ok",
+      "td": null
+    },
+    {
+      "name": "m3 ai avec une 7e partie",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.ai.c2lnbmF0dXJlLWRlLXRlc3Q=.0.td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "expect": "invalid_format"
+    },
+    {
+      "name": "m3 rt1, 7e partie sans préfixe td1",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d.c2lnbmF0dXJlLWRlLXRlc3Q=.0.eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "expect": "invalid_format"
+    },
+    {
+      "name": "m3 rt1, 7e partie td2 (version inconnue)",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d.c2lnbmF0dXJlLWRlLXRlc3Q=.0.td2:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "expect": "invalid_format"
+    },
+    {
+      "name": "m3 rt1, déclaration sans signature",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d.c2lnbmF0dXJlLWRlLXRlc3Q=.0.td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:",
+      "expect": "invalid_format"
+    },
+    {
+      "name": "m3 rt1, 8 parties",
+      "iv": "m3.AAECAwQFBgcICQoL.5f1e2d3c-4b5a-4968-8776-655443322110.rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d.c2lnbmF0dXJlLWRlLXRlc3Q=.0.td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ.x",
+      "expect": "invalid_format"
+    }
+  ],
+  "readerCases": [
+    {
+      "name": "déclaration valide",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000001",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 0
+      },
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "plaintext": "{\"salt\":\"eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\"}",
+      "expect": "text_verified",
+      "display": "Bonjour à tous, la réunion est déplacée à 15 h."
+    },
+    {
+      "name": "texte modifié par le runtime",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000001",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 0
+      },
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "plaintext": "{\"salt\":\"eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\",\"text\":\"Bonjour à tous, la réunion est déplacée à 17 h.\"}",
+      "expect": "text_unverified",
+      "reason": "text_mismatch",
+      "display": "Bonjour à tous, la réunion est déplacée à 17 h."
+    },
+    {
+      "name": "sel modifié",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000001",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 0
+      },
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "plaintext": "{\"salt\":\"5963c4da9ff48aacbcb652087ee13f69799d6070897a2a72bb8e643c48a4f938\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\"}",
+      "expect": "text_unverified",
+      "reason": "text_mismatch",
+      "display": "Bonjour à tous, la réunion est déplacée à 15 h."
+    },
+    {
+      "name": "cible modifiée : autre salon",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000002",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 0
+      },
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "plaintext": "{\"salt\":\"eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\"}",
+      "expect": "text_unverified",
+      "reason": "target_mismatch",
+      "display": "Bonjour à tous, la réunion est déplacée à 15 h."
+    },
+    {
+      "name": "cible modifiée : réponse ajoutée",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000001",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": "cm3messageexample00000002",
+        "rev": 0
+      },
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "plaintext": "{\"salt\":\"eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\"}",
+      "expect": "text_unverified",
+      "reason": "target_mismatch",
+      "display": "Bonjour à tous, la réunion est déplacée à 15 h."
+    },
+    {
+      "name": "réponse déclarée, message sans réponse",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000001",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 0
+      },
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6Mywib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InJlcGx5VG8iOiJjbTNtZXNzYWdlZXhhbXBsZTAwMDAwMDAyIiwidGhyZWFkSWQiOiJjbTN0aHJlYWRleGFtcGxlMDAwMDAwMDAxIn0sInRleHRDb21taXQiOiI5NmNmYzJkZTJhMzI0OGQ1OGQ1OWUzMWQ5YzliNDk3OTI0N2EzOTBkNzhhZTg3ODhiNWM1Y2UyODhlZWI4M2E5IiwidXNlcklkIjoiY20zdXNlcmV4YW1wbGUwMDAwMDAwMDAwMSIsInYiOjF9:YuG3hCmIpDTtIKeEThMzxYB2mzuuy8JBTSa62sAs0HnpiUVOdKV_TWQc9eVWbH5rXKpVGIVgfjflbiqNFDzWhA",
+      "plaintext": "{\"salt\":\"c86e2f5218b4b51ebd3e4ea1b5d033ad3307754ed8116c26356f2584d44285fe\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\"}",
+      "expect": "text_unverified",
+      "reason": "target_mismatch",
+      "display": "Bonjour à tous, la réunion est déplacée à 15 h."
+    },
+    {
+      "name": "réponse déclarée et respectée",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000001",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": "cm3messageexample00000002",
+        "rev": 0
+      },
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6Mywib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InJlcGx5VG8iOiJjbTNtZXNzYWdlZXhhbXBsZTAwMDAwMDAyIiwidGhyZWFkSWQiOiJjbTN0aHJlYWRleGFtcGxlMDAwMDAwMDAxIn0sInRleHRDb21taXQiOiI5NmNmYzJkZTJhMzI0OGQ1OGQ1OWUzMWQ5YzliNDk3OTI0N2EzOTBkNzhhZTg3ODhiNWM1Y2UyODhlZWI4M2E5IiwidXNlcklkIjoiY20zdXNlcmV4YW1wbGUwMDAwMDAwMDAwMSIsInYiOjF9:YuG3hCmIpDTtIKeEThMzxYB2mzuuy8JBTSa62sAs0HnpiUVOdKV_TWQc9eVWbH5rXKpVGIVgfjflbiqNFDzWhA",
+      "plaintext": "{\"salt\":\"c86e2f5218b4b51ebd3e4ea1b5d033ad3307754ed8116c26356f2584d44285fe\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\"}",
+      "expect": "text_verified",
+      "display": "Bonjour à tous, la réunion est déplacée à 15 h."
+    },
+    {
+      "name": "cible modifiée dans la déclaration (signature d'origine)",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000002",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 0
+      },
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMiJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "plaintext": "{\"salt\":\"eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\"}",
+      "expect": "text_unverified",
+      "reason": "bad_signature",
+      "display": "Bonjour à tous, la réunion est déplacée à 15 h."
+    },
+    {
+      "name": "empreinte remplacée dans la déclaration (signature d'origine)",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000001",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 0
+      },
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiMTc2MGExZDZjYzBhMWUxMTU4ODhjM2IzMWQzMDVmMjkxM2YzYTU4YzZkOWZhN2M1ODNhNjY0ODYzMjhmOWJlMyIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "plaintext": "{\"salt\":\"eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\",\"text\":\"autre\"}",
+      "expect": "text_unverified",
+      "reason": "bad_signature",
+      "display": "autre"
+    },
+    {
+      "name": "signée par la clé d'un autre membre",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000001",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 0
+      },
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:F78ybjLV5-n_FUv99f-9ovrSWuJ7sq_JpcllgZ0zZ8Vu1IbonO8ADQRrf5kCHPXA6dFFjv3ffuYJ_AtpICGfxw",
+      "plaintext": "{\"salt\":\"eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\"}",
+      "expect": "text_unverified",
+      "reason": "bad_signature",
+      "display": "Bonjour à tous, la réunion est déplacée à 15 h."
+    },
+    {
+      "name": "userId de la déclaration ≠ expéditeur",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000001",
+        "senderId": "cm3userexample00000000002",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 0
+      },
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "plaintext": "{\"salt\":\"eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\"}",
+      "expect": "text_unverified",
+      "reason": "signer_mismatch",
+      "display": "Bonjour à tous, la réunion est déplacée à 15 h."
+    },
+    {
+      "name": "autre org",
+      "message": {
+        "orgId": "cm3orgexample000000000002",
+        "threadId": "cm3threadexample000000001",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 0
+      },
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "plaintext": "{\"salt\":\"eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\"}",
+      "expect": "text_unverified",
+      "reason": "target_mismatch",
+      "display": "Bonjour à tous, la réunion est déplacée à 15 h."
+    },
+    {
+      "name": "message.send sur une révision (rev 1)",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000001",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 1
+      },
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "plaintext": "{\"salt\":\"eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\"}",
+      "expect": "text_unverified",
+      "reason": "kind_mismatch",
+      "display": "Bonjour à tous, la réunion est déplacée à 15 h."
+    },
+    {
+      "name": "message.edit valide (rev 1)",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000001",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000001",
+        "replyToId": null,
+        "rev": 1
+      },
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5lZGl0IiwibiI6Miwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7Im1lc3NhZ2VJZCI6ImNtM21lc3NhZ2VleGFtcGxlMDAwMDAwMDEifSwidGV4dENvbW1pdCI6IjY3MWQ4NjI5NGY4NDVjYWQyNDZhMTU0ODQ5YmM2ZjRjM2NjYjQ3YjYzM2JlYzA5MDM2YWMwYzM1NDkwZWQxN2EiLCJ1c2VySWQiOiJjbTN1c2VyZXhhbXBsZTAwMDAwMDAwMDAxIiwidiI6MX0:6z-snOeoCE63YsgpsHxVZcy3-Mt0wtsBHSK6sJgwJ-Q5u5f013a3WjuhEfs-MeCcQiDV_I5AjHuJjHQc9g59hw",
+      "plaintext": "{\"salt\":\"5963c4da9ff48aacbcb652087ee13f69799d6070897a2a72bb8e643c48a4f938\",\"text\":\"Correction : 16 h.\"}",
+      "expect": "text_verified",
+      "display": "Correction : 16 h."
+    },
+    {
+      "name": "message.edit sur un autre message",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000001",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 1
+      },
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5lZGl0IiwibiI6Miwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7Im1lc3NhZ2VJZCI6ImNtM21lc3NhZ2VleGFtcGxlMDAwMDAwMDEifSwidGV4dENvbW1pdCI6IjY3MWQ4NjI5NGY4NDVjYWQyNDZhMTU0ODQ5YmM2ZjRjM2NjYjQ3YjYzM2JlYzA5MDM2YWMwYzM1NDkwZWQxN2EiLCJ1c2VySWQiOiJjbTN1c2VyZXhhbXBsZTAwMDAwMDAwMDAxIiwidiI6MX0:6z-snOeoCE63YsgpsHxVZcy3-Mt0wtsBHSK6sJgwJ-Q5u5f013a3WjuhEfs-MeCcQiDV_I5AjHuJjHQc9g59hw",
+      "plaintext": "{\"salt\":\"5963c4da9ff48aacbcb652087ee13f69799d6070897a2a72bb8e643c48a4f938\",\"text\":\"Correction : 16 h.\"}",
+      "expect": "text_unverified",
+      "reason": "target_mismatch",
+      "display": "Correction : 16 h."
+    },
+    {
+      "name": "message.edit par argsRefs (cible contrôlée par l'API)",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000001",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 2
+      },
+      "td": "td1:eyJhcmdzUmVmcyI6eyJtZXNzYWdlSWQiOiIkMS5pZCJ9LCJraW5kIjoibWVzc2FnZS5lZGl0IiwibiI6Miwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7fSwidGV4dENvbW1pdCI6IjY3MWQ4NjI5NGY4NDVjYWQyNDZhMTU0ODQ5YmM2ZjRjM2NjYjQ3YjYzM2JlYzA5MDM2YWMwYzM1NDkwZWQxN2EiLCJ1c2VySWQiOiJjbTN1c2VyZXhhbXBsZTAwMDAwMDAwMDAxIiwidiI6MX0:oSIZIFH__JJo44knj5ma2psCVXmHAF_KcPktqy1UsLYugk0CqK0zDC2kk4tOeOScdTB12jsYnl0qclhFr1_shw",
+      "plaintext": "{\"salt\":\"5963c4da9ff48aacbcb652087ee13f69799d6070897a2a72bb8e643c48a4f938\",\"text\":\"Correction : 16 h.\"}",
+      "expect": "text_verified",
+      "display": "Correction : 16 h."
+    },
+    {
+      "name": "message.send, salon par argsRefs (cible contrôlée par l'API)",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000002",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 0
+      },
+      "td": "td1:eyJhcmdzUmVmcyI6eyJ0aHJlYWRJZCI6IiQ0LmlkIn0sImtpbmQiOiJtZXNzYWdlLnNlbmQiLCJuIjoxLCJvcmdJZCI6ImNtM29yZ2V4YW1wbGUwMDAwMDAwMDAwMDEiLCJwbGFuSWQiOiI2YzJkM2U0Zi01MDYxLTRiNzItOGM4My1hNGI1YzZkN2U4ZjkiLCJ0YXJnZXQiOnt9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:mQx7amAvMYeVBWT4UOdx33wKfkJlqc5em8GbCP4voRkAuPmBFUxcRrpdLA7iCnvZfSIumnxEWgr0a6hUZJx-Zg",
+      "plaintext": "{\"salt\":\"eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\"}",
+      "expect": "text_verified",
+      "display": "Bonjour à tous, la réunion est déplacée à 15 h."
+    },
+    {
+      "name": "déclaration absente sur un m3 rt1 (ancien format)",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000001",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 0
+      },
+      "td": null,
+      "plaintext": "Bonjour à tous, la réunion est déplacée à 15 h.",
+      "expect": "text_unverified",
+      "reason": "absent",
+      "display": "Bonjour à tous, la réunion est déplacée à 15 h."
+    },
+    {
+      "name": "enveloppe illisible",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000001",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 0
+      },
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "plaintext": "Bonjour à tous, la réunion est déplacée à 15 h.",
+      "expect": "text_unverified",
+      "reason": "invalid_envelope",
+      "display": "Bonjour à tous, la réunion est déplacée à 15 h."
+    },
+    {
+      "name": "déclaration non canonique",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000001",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 0
+      },
+      "td": "td1:eyJ2IjoxLCJvcmdJZCI6ImNtM29yZ2V4YW1wbGUwMDAwMDAwMDAwMDEiLCJ1c2VySWQiOiJjbTN1c2VyZXhhbXBsZTAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwibiI6MSwia2luZCI6Im1lc3NhZ2Uuc2VuZCIsInRhcmdldCI6eyJ0aHJlYWRJZCI6ImNtM3RocmVhZGV4YW1wbGUwMDAwMDAwMDEifSwidGV4dENvbW1pdCI6IjU0OThmMjFhNzczNzliYTJlOWY3Y2RlZTUyNzBhNTA0NzQxYzkwMjg4OGY0ZmZjNzZhZGRiNGU0ZDlkMzQ1NTEifQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "plaintext": "{\"salt\":\"eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\"}",
+      "expect": "text_unverified",
+      "reason": "invalid_declaration",
+      "display": "Bonjour à tous, la réunion est déplacée à 15 h."
+    },
+    {
+      "name": "version de déclaration inconnue",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000001",
+        "senderId": "cm3userexample00000000001",
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 0
+      },
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoyfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "plaintext": "{\"salt\":\"eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\"}",
+      "expect": "text_unverified",
+      "reason": "invalid_declaration",
+      "display": "Bonjour à tous, la réunion est déplacée à 15 h."
+    },
+    {
+      "name": "expéditeur supprimé (clés indisponibles)",
+      "message": {
+        "orgId": "cm3orgexample000000000001",
+        "threadId": "cm3threadexample000000001",
+        "senderId": null,
+        "messageId": "cm3messageexample00000009",
+        "replyToId": null,
+        "rev": 0
+      },
+      "td": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "plaintext": "{\"salt\":\"eaf4602dfcd3b9e1c8307e97e703592b88df75a3541edb04c31fecd72b50f4f6\",\"text\":\"Bonjour à tous, la réunion est déplacée à 15 h.\"}",
+      "expect": "text_unverified",
+      "reason": "signer_unavailable",
+      "display": "Bonjour à tous, la réunion est déplacée à 15 h."
+    }
+  ],
+  "apiDecisionCases": [
+    {
+      "orgId": "cm3orgexample000000000001",
+      "userId": "cm3userexample00000000001",
+      "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+      "accepted": [
+        1,
+        2,
+        3
+      ],
+      "serverDigests": {
+        "1": "a019570dffea24d7cf6b52c60da980efad1c9fa860a57d3e88007cd35214a533",
+        "2": "a94395f1ed5d09cbe4f04e5c26deef8fd344524390dd4e59f478ec30dbced6e5",
+        "3": "162cccbe38246135666ff4e0a00f18e0cc8202761d63df567525e5473fc4836d"
+      },
+      "name": "trois déclarations cohérentes",
+      "textDeclarations": [
+        {
+          "n": 1,
+          "value": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ"
+        },
+        {
+          "n": 2,
+          "value": "td1:eyJraW5kIjoibWVzc2FnZS5lZGl0IiwibiI6Miwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7Im1lc3NhZ2VJZCI6ImNtM21lc3NhZ2VleGFtcGxlMDAwMDAwMDEifSwidGV4dENvbW1pdCI6IjY3MWQ4NjI5NGY4NDVjYWQyNDZhMTU0ODQ5YmM2ZjRjM2NjYjQ3YjYzM2JlYzA5MDM2YWMwYzM1NDkwZWQxN2EiLCJ1c2VySWQiOiJjbTN1c2VyZXhhbXBsZTAwMDAwMDAwMDAxIiwidiI6MX0:6z-snOeoCE63YsgpsHxVZcy3-Mt0wtsBHSK6sJgwJ-Q5u5f013a3WjuhEfs-MeCcQiDV_I5AjHuJjHQc9g59hw"
+        },
+        {
+          "n": 3,
+          "value": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6Mywib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InJlcGx5VG8iOiJjbTNtZXNzYWdlZXhhbXBsZTAwMDAwMDAyIiwidGhyZWFkSWQiOiJjbTN0aHJlYWRleGFtcGxlMDAwMDAwMDAxIn0sInRleHRDb21taXQiOiI5NmNmYzJkZTJhMzI0OGQ1OGQ1OWUzMWQ5YzliNDk3OTI0N2EzOTBkNzhhZTg3ODhiNWM1Y2UyODhlZWI4M2E5IiwidXNlcklkIjoiY20zdXNlcmV4YW1wbGUwMDAwMDAwMDAwMSIsInYiOjF9:YuG3hCmIpDTtIKeEThMzxYB2mzuuy8JBTSa62sAs0HnpiUVOdKV_TWQc9eVWbH5rXKpVGIVgfjflbiqNFDzWhA"
+        }
+      ],
+      "expect": "ok"
+    },
+    {
+      "orgId": "cm3orgexample000000000001",
+      "userId": "cm3userexample00000000001",
+      "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+      "accepted": [
+        1,
+        2,
+        3
+      ],
+      "serverDigests": {
+        "1": "a019570dffea24d7cf6b52c60da980efad1c9fa860a57d3e88007cd35214a533",
+        "2": "a94395f1ed5d09cbe4f04e5c26deef8fd344524390dd4e59f478ec30dbced6e5",
+        "3": "162cccbe38246135666ff4e0a00f18e0cc8202761d63df567525e5473fc4836d"
+      },
+      "name": "aucune déclaration (acceptée ; exécution refusée ensuite)",
+      "textDeclarations": [],
+      "expect": "ok"
+    },
+    {
+      "orgId": "cm3orgexample000000000001",
+      "userId": "cm3userexample00000000001",
+      "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+      "accepted": [
+        2,
+        3
+      ],
+      "serverDigests": {
+        "1": "a019570dffea24d7cf6b52c60da980efad1c9fa860a57d3e88007cd35214a533",
+        "2": "a94395f1ed5d09cbe4f04e5c26deef8fd344524390dd4e59f478ec30dbced6e5",
+        "3": "162cccbe38246135666ff4e0a00f18e0cc8202761d63df567525e5473fc4836d"
+      },
+      "name": "déclaration d'une action non acceptée",
+      "textDeclarations": [
+        {
+          "n": 1,
+          "value": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ"
+        }
+      ],
+      "expect": "invalid_body"
+    },
+    {
+      "orgId": "cm3orgexample000000000001",
+      "userId": "cm3userexample00000000001",
+      "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+      "accepted": [
+        1,
+        2,
+        3
+      ],
+      "serverDigests": {
+        "1": "a019570dffea24d7cf6b52c60da980efad1c9fa860a57d3e88007cd35214a533",
+        "2": "a94395f1ed5d09cbe4f04e5c26deef8fd344524390dd4e59f478ec30dbced6e5",
+        "3": "162cccbe38246135666ff4e0a00f18e0cc8202761d63df567525e5473fc4836d"
+      },
+      "name": "deux déclarations pour la même action",
+      "textDeclarations": [
+        {
+          "n": 1,
+          "value": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ"
+        },
+        {
+          "n": 1,
+          "value": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ"
+        }
+      ],
+      "expect": "invalid_body"
+    },
+    {
+      "orgId": "cm3orgexample000000000001",
+      "userId": "cm3userexample00000000001",
+      "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+      "accepted": [
+        1,
+        2,
+        3
+      ],
+      "serverDigests": {
+        "1": "a019570dffea24d7cf6b52c60da980efad1c9fa860a57d3e88007cd35214a533",
+        "2": "a94395f1ed5d09cbe4f04e5c26deef8fd344524390dd4e59f478ec30dbced6e5",
+        "3": "162cccbe38246135666ff4e0a00f18e0cc8202761d63df567525e5473fc4836d"
+      },
+      "name": "segment illisible",
+      "textDeclarations": [
+        {
+          "n": 1,
+          "value": "td1:xx"
+        }
+      ],
+      "expect": "invalid_body"
+    },
+    {
+      "orgId": "cm3orgexample000000000001",
+      "userId": "cm3userexample00000000001",
+      "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+      "accepted": [
+        1,
+        2,
+        3
+      ],
+      "serverDigests": {
+        "1": "a019570dffea24d7cf6b52c60da980efad1c9fa860a57d3e88007cd35214a533",
+        "2": "a94395f1ed5d09cbe4f04e5c26deef8fd344524390dd4e59f478ec30dbced6e5",
+        "3": "162cccbe38246135666ff4e0a00f18e0cc8202761d63df567525e5473fc4836d"
+      },
+      "name": "déclaration de l'action 1 présentée pour l'action 3",
+      "textDeclarations": [
+        {
+          "n": 3,
+          "value": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ"
+        }
+      ],
+      "expect": "plan_digest_mismatch"
+    },
+    {
+      "orgId": "cm3orgexample000000000001",
+      "userId": "cm3userexample00000000001",
+      "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+      "accepted": [
+        1,
+        2,
+        3
+      ],
+      "serverDigests": {
+        "1": "a019570dffea24d7cf6b52c60da980efad1c9fa860a57d3e88007cd35214a533",
+        "2": "a94395f1ed5d09cbe4f04e5c26deef8fd344524390dd4e59f478ec30dbced6e5",
+        "3": "162cccbe38246135666ff4e0a00f18e0cc8202761d63df567525e5473fc4836d"
+      },
+      "name": "cible différente de serverDigests",
+      "textDeclarations": [
+        {
+          "n": 1,
+          "value": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMiJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ"
+        }
+      ],
+      "expect": "plan_digest_mismatch"
+    },
+    {
+      "orgId": "cm3orgexample000000000001",
+      "userId": "cm3userexample00000000001",
+      "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+      "accepted": [
+        1,
+        2,
+        3
+      ],
+      "serverDigests": {
+        "1": "a019570dffea24d7cf6b52c60da980efad1c9fa860a57d3e88007cd35214a533",
+        "2": "a94395f1ed5d09cbe4f04e5c26deef8fd344524390dd4e59f478ec30dbced6e5",
+        "3": "162cccbe38246135666ff4e0a00f18e0cc8202761d63df567525e5473fc4836d"
+      },
+      "name": "autre planId",
+      "textDeclarations": [
+        {
+          "n": 1,
+          "value": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiN2QzZTRmNTAtNjE3Mi00YzgzLTlkOTQtYjVjNmQ3ZThmOWEwIiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ"
+        }
+      ],
+      "expect": "plan_digest_mismatch"
+    },
+    {
+      "orgId": "cm3orgexample000000000001",
+      "userId": "cm3userexample00000000001",
+      "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+      "accepted": [
+        1,
+        2,
+        3
+      ],
+      "serverDigests": {
+        "1": "a019570dffea24d7cf6b52c60da980efad1c9fa860a57d3e88007cd35214a533",
+        "2": "a94395f1ed5d09cbe4f04e5c26deef8fd344524390dd4e59f478ec30dbced6e5",
+        "3": "162cccbe38246135666ff4e0a00f18e0cc8202761d63df567525e5473fc4836d"
+      },
+      "name": "autre utilisateur",
+      "textDeclarations": [
+        {
+          "n": 1,
+          "value": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDIiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ"
+        }
+      ],
+      "expect": "plan_digest_mismatch"
+    },
+    {
+      "orgId": "cm3orgexample000000000001",
+      "userId": "cm3userexample00000000001",
+      "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+      "accepted": [
+        1,
+        2,
+        3
+      ],
+      "serverDigests": {
+        "1": "a019570dffea24d7cf6b52c60da980efad1c9fa860a57d3e88007cd35214a533",
+        "2": "a94395f1ed5d09cbe4f04e5c26deef8fd344524390dd4e59f478ec30dbced6e5",
+        "3": "162cccbe38246135666ff4e0a00f18e0cc8202761d63df567525e5473fc4836d"
+      },
+      "name": "signature fausse (non vérifiée par l'API)",
+      "textDeclarations": [
+        {
+          "n": 1,
+          "value": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:F78ybjLV5-n_FUv99f-9ovrSWuJ7sq_JpcllgZ0zZ8Vu1IbonO8ADQRrf5kCHPXA6dFFjv3ffuYJ_AtpICGfxw"
+        }
+      ],
+      "expect": "ok",
+      "note": "l'API ne vérifie pas la signature (03 §12) : le lecteur le fait"
+    }
+  ],
+  "apiExecuteCases": [
+    {
+      "name": "déclaration identique à celle de la décision",
+      "stored": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "ivTd": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "expect": "ok"
+    },
+    {
+      "name": "déclaration absente du iv",
+      "stored": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "ivTd": null,
+      "expect": "action_not_accepted"
+    },
+    {
+      "name": "aucune déclaration à la décision",
+      "stored": null,
+      "ivTd": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "expect": "action_not_accepted"
+    },
+    {
+      "name": "déclaration différente (autre action)",
+      "stored": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "ivTd": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6Mywib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InJlcGx5VG8iOiJjbTNtZXNzYWdlZXhhbXBsZTAwMDAwMDAyIiwidGhyZWFkSWQiOiJjbTN0aHJlYWRleGFtcGxlMDAwMDAwMDAxIn0sInRleHRDb21taXQiOiI5NmNmYzJkZTJhMzI0OGQ1OGQ1OWUzMWQ5YzliNDk3OTI0N2EzOTBkNzhhZTg3ODhiNWM1Y2UyODhlZWI4M2E5IiwidXNlcklkIjoiY20zdXNlcmV4YW1wbGUwMDAwMDAwMDAwMSIsInYiOjF9:YuG3hCmIpDTtIKeEThMzxYB2mzuuy8JBTSa62sAs0HnpiUVOdKV_TWQc9eVWbH5rXKpVGIVgfjflbiqNFDzWhA",
+      "expect": "action_not_accepted"
+    },
+    {
+      "name": "même déclaration, autre signature valide",
+      "stored": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:OuQuEN-5_Sp9SdqPHKh8eKE14zuEcXNeNlfjhvmy7qW70dRAbo9HtHWBqJ5h3dniFB3gYhyOEgJYLA2fmD6kVQ",
+      "ivTd": "td1:eyJraW5kIjoibWVzc2FnZS5zZW5kIiwibiI6MSwib3JnSWQiOiJjbTNvcmdleGFtcGxlMDAwMDAwMDAwMDAxIiwicGxhbklkIjoiNmMyZDNlNGYtNTA2MS00YjcyLThjODMtYTRiNWM2ZDdlOGY5IiwidGFyZ2V0Ijp7InRocmVhZElkIjoiY20zdGhyZWFkZXhhbXBsZTAwMDAwMDAwMSJ9LCJ0ZXh0Q29tbWl0IjoiNTQ5OGYyMWE3NzM3OWJhMmU5ZjdjZGVlNTI3MGE1MDQ3NDFjOTAyODg4ZjRmZmM3NmFkZGI0ZTRkOWQzNDU1MSIsInVzZXJJZCI6ImNtM3VzZXJleGFtcGxlMDAwMDAwMDAwMDEiLCJ2IjoxfQ:MZ4Kcb8l2eiT1Q2qIqZ2L_f1ny8_F2OXlttXhTg877L9nrUc2QtMPcurZLCiJ5Mz1m-E7HLJuaMPomDXmqvTjA",
+      "expect": "action_not_accepted",
+      "note": "ECDSA non déterministe : comparaison octet à octet du segment"
+    }
+  ],
+  "executorCases": [
+    {
+      "name": "salon venu par argsRefs : runtime",
+      "mode": "auto",
+      "action": {
+        "n": 2,
+        "kind": "message.send",
+        "args": {
+          "text": "Bonjour à tous, la réunion est déplacée à 15 h."
+        },
+        "argsRefs": {
+          "threadId": "$1.id"
+        },
+        "after": [
+          1
+        ]
+      },
+      "expect": "agent"
+    },
+    {
+      "name": "réponse venue par argsRefs : runtime",
+      "mode": "auto",
+      "action": {
+        "n": 2,
+        "kind": "message.send",
+        "args": {
+          "threadId": "cm3threadexample000000001",
+          "text": "Bonjour à tous, la réunion est déplacée à 15 h."
+        },
+        "argsRefs": {
+          "replyTo": "$1.id"
+        },
+        "after": [
+          1
+        ]
+      },
+      "expect": "agent"
+    },
+    {
+      "name": "texte venu par argsRefs : appareil",
+      "mode": "auto",
+      "action": {
+        "n": 2,
+        "kind": "message.send",
+        "args": {
+          "threadId": "cm3threadexample000000001"
+        },
+        "argsRefs": {
+          "text": "$1.id"
+        },
+        "after": [
+          1
+        ]
+      },
+      "expect": "device"
+    },
+    {
+      "name": "message.edit, texte venu par argsRefs : appareil",
+      "mode": "auto",
+      "action": {
+        "n": 2,
+        "kind": "message.edit",
+        "args": {
+          "messageId": "cm3messageexample00000001"
+        },
+        "argsRefs": {
+          "text": "$1.id"
+        },
+        "after": [
+          1
+        ]
+      },
+      "targetAuthor": "rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "expect": "device"
+    }
+  ]
+}
