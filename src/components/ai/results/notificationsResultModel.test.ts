@@ -42,7 +42,9 @@ describe('rendu du domaine Notifications et statut', () => {
     test('statut : libellé et message', () => {
         expect(statusLabel('idle')).toBe('absent');
         expect(statusLabel('zzz')).toBe('mis à jour');
-        expect(buildNotificationsView('set_my_status', { status: 'dnd', message: 'En réunion' })).toEqual({ kind: 'message', text: 'Statut : ne pas déranger — « En réunion ».' });
+        expect(buildNotificationsView('set_my_status', { status: 'dnd' })).toEqual({ kind: 'message', text: 'Statut : ne pas déranger.' });
+        expect(buildNotificationsView('set_my_status_message', { message: 'En réunion' })).toEqual({ kind: 'message', text: 'Message de statut : « En réunion ».' });
+        expect(buildNotificationsView('set_my_status_message', { message: null })).toEqual({ kind: 'message', text: 'Message de statut effacé.' });
     });
 
     test('troncature signalée', () => {

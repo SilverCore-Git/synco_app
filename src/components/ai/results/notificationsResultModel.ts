@@ -68,9 +68,11 @@ export function buildNotificationsView(toolName: string, result: unknown): Notif
         }
         case 'notify_me':
             return { kind: 'message', text: 'Rappel ajouté à vos notifications.' };
-        case 'set_my_status': {
+        case 'set_my_status':
+            return { kind: 'message', text: `Statut : ${statusLabel(r.status)}.` };
+        case 'set_my_status_message': {
             const message = str(r.message);
-            return { kind: 'message', text: `Statut : ${statusLabel(r.status)}${message ? ` — « ${message} »` : ''}.` };
+            return { kind: 'message', text: message ? `Message de statut : « ${message} ».` : 'Message de statut effacé.' };
         }
         default:
             return { kind: 'message', text: 'Terminé.' };
