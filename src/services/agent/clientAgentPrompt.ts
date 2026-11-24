@@ -22,6 +22,13 @@ export interface AgentToolSpec {
     category: 'server' | 'client';
     mutating: boolean;
     interactive: boolean;
+    /** Champs du catalogue (L15-0), absents d'un ancien manifeste. */
+    domain?: string | null;
+    risk?: string | null;
+    sensitive?: boolean;
+    defaultPolicy?: 'auto' | 'ask' | 'interactive' | null;
+    core?: boolean;
+    runtime?: 'yes' | 'device_only';
     /** JSON Schema issu de zod. */
     parameters: any;
 }

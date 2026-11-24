@@ -2,6 +2,7 @@ import sfetch from '@/assets/utils/sfetch';
 import { buildClientAgentSystemPrompt, type AgentToolSpec } from './clientAgentPrompt';
 import { buildTranscript, type EngineMessage } from './clientAgentTranscript';
 import { ThinkTagSplitter } from './thinkTagSplitter';
+import { rememberToolDomains } from '@/components/ai/results/toolDomains';
 
 // Boucle d'agent pour les moteurs pilotés par le navigateur (WebGPU local, serveur custom). Elle émet
 // exactement les mêmes événements que le flux SSE de synco_api (aiTurnRunner.ts) : l'interface
@@ -46,6 +47,10 @@ export interface ClientDecision {
 const MAX_STEPS = 8;
 
 const manifests = new Map<string, Promise<AgentToolSpec[]>>();
+const manifestVersions = new Map<string, string>();
+
+/** Version (SHA-256) du manifeste chargé pour cette org, si l'API en a donné une. */
+export const toolManifestVersion = (orgId: string): string | undefined => manifestVersions.get(orgId);
 
 export const loadToolManifest = (orgId: string): Promise<AgentToolSpec[]> => {
     let cached = manifests.get(orgId);
@@ -53,7 +58,12 @@ export const loadToolManifest = (orgId: string): Promise<AgentToolSpec[]> => {
         cached = (async () => {
             const res = await sfetch(`/api/orgs/${orgId}/ai/tools`);
             if (!res.ok) throw new Error(`Impossible de charger les outils de l'agent (${res.status}).`);
-            return await res.json() as AgentToolSpec[];
+            const body = await res.json() as AgentToolSpec[] | { version?: string; tools?: AgentToolSpec[] };
+            // Format versionné `{ version, tools }` (L15-0) ou ancien tableau nu.
+            const tools = Array.isArray(body) ? body : (body.tools ?? []);
+            if (!Array.isArray(body) && typeof body.version === 'string') manifestVersions.set(orgId, body.version);
+            rememberToolDomains(tools);
+            return tools;
         })();
         cached.catch(() => manifests.delete(orgId));
         manifests.set(orgId, cached);

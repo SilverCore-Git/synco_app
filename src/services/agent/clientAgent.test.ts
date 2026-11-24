@@ -3,6 +3,10 @@ import { describe, expect, mock, test } from "bun:test";
 // executeServerTool passe par sfetch (Keycloak, import.meta.env) : on le remplace pour tester la boucle seule.
 mock.module('@/assets/utils/sfetch', () => ({
     default: async (url: string) => {
+        if (url.endsWith('/orgs/versionnee/ai/tools')) return new Response(JSON.stringify({
+            version: 'v-abc',
+            tools: [{ name: 'delete_task', description: 'Supprimer', category: 'server', mutating: true, interactive: false, domain: 'tasks', risk: 'R3', sensitive: true, defaultPolicy: 'ask', parameters: { type: 'object', properties: {} } }],
+        }));
         if (url.endsWith('/ai/tools')) return new Response(JSON.stringify([
             { name: 'read_tasks', description: 'Lire', category: 'server', mutating: false, interactive: false, parameters: { type: 'object', properties: {} } },
             { name: 'create_task', description: 'Créer', category: 'server', mutating: true, interactive: false, parameters: { type: 'object', properties: { title: { type: 'string' } }, required: ['title'] } },
@@ -12,7 +16,8 @@ mock.module('@/assets/utils/sfetch', () => ({
     },
 }));
 
-const { startClientAgentTurn, resumeClientAgentTurn } = await import('./clientAgent');
+const { startClientAgentTurn, resumeClientAgentTurn, loadToolManifest, toolManifestVersion } = await import('./clientAgent');
+const { toolDomainOf } = await import('@/components/ai/results/toolDomains');
 
 const scripted = (...replies: any[][]) => {
     let i = 0;
@@ -87,5 +92,21 @@ describe("client agent loop", () => {
         const engine = scripted(call, call, call, call, call, call, call, call, call);
         const evs = await collect(startClientAgentTurn(deps(engine, [{ role: 'user', content: 'x' }])));
         expect(evs[evs.length - 1].type).toBe('error');
+    });
+});
+
+describe('manifeste des outils', () => {
+    test('accepte le format versionné { version, tools } et retient domaine et version', async () => {
+        const tools = await loadToolManifest('versionnee');
+        expect(tools.map(t => t.name)).toEqual(['delete_task']);
+        expect(tools[0]?.sensitive).toBe(true);
+        expect(toolManifestVersion('versionnee')).toBe('v-abc');
+        expect(toolDomainOf('delete_task')).toBe('tasks');
+    });
+
+    test('accepte encore l’ancien tableau nu', async () => {
+        const tools = await loadToolManifest('ancienne');
+        expect(tools.map(t => t.name)).toEqual(['read_tasks', 'create_task', 'search_messages']);
+        expect(toolManifestVersion('ancienne')).toBeUndefined();
     });
 });
