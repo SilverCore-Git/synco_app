@@ -20,8 +20,15 @@ import { creationFailureState } from './deviceErrors';
 import { claimPhase, depositPlanResult, isCode, postProgress, type PlanRoute } from './planApi';
 
 export const DEVICE_KINDS = ['category.create', 'thread.create', 'folder.create', 'file.create_text'] as const;
-export type DeviceKind = (typeof DEVICE_KINDS)[number];
-const isDeviceKind = (k: unknown): k is DeviceKind => (DEVICE_KINDS as readonly unknown[]).includes(k);
+/**
+ * Kinds historiques (liste fermée) ou déposés dans `planKinds/` (registre L15-0). Le runner reste pur (le
+ * registre repose sur `import.meta.glob`) : il n'exige que la forme `domaine.action` ; un kind que personne
+ * n'exécute est refusé par `executeDeviceAction` (`unknown_kind`, rien n'est parti : `failed`).
+ */
+export type DeviceKind = string;
+const KIND_SHAPE = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/;
+const isDeviceKind = (k: unknown): k is DeviceKind =>
+    typeof k === 'string' && ((DEVICE_KINDS as readonly string[]).includes(k) || KIND_SHAPE.test(k));
 
 export const DEFAULT_CONCURRENCY = 4;
 export const MAX_CONCURRENCY = 8;
