@@ -1568,3 +1568,18 @@ vue-tsc 0 erreur (détection vérifiée) ; `bun test src/services` : 316 réussi
 
 ### **Reste ouvert**
 Sans clé de session IA, le vrai titre n'est pas gardé en local (liste = « Nouvelle conversation »). Les conversations `conv-gcm1-v1` ne sont pas concernées (titre déjà `gcm1:`).
+
+---
+
+## 📅 **2026-11-23 - Lot R2 : suppression du compte, keyguard d'abord**
+
+**Statut** : 🟢 code, tests et vue-tsc faits.
+
+### **Changements**
+`services/accountDeletion.ts` (`deleteMyAccount`) : `DELETE /v1/setup` du keyguard puis `DELETE /api/users/me`, appelé par `UserSettings.vue` (confirmation inchangée : `ConfirmDelete.vue`). Keyguard injoignable ou non configuré : la suppression continue (filet côté keyguard : liste signée des tombstones de synco_api). Propriétaire d'une organisation (liste locale) : le keyguard n'est pas appelé, l'API répond 409 et la récupération par PIN reste active.
+
+### **Vérifications**
+vue-tsc 0 erreur (détection vérifiée par une erreur volontaire) ; `bun test src/services` : 320 réussis, 0 échec.
+
+### **Reste ouvert**
+Recette Firefox : suppression avec et sans récupération par PIN, keyguard coupé, propriétaire d'org (409). Une autre cause de refus (403 super-admin) arrive après la désactivation du keyguard.
