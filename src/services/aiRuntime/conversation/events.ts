@@ -30,6 +30,8 @@ export type RuntimeEvent =
     | { t: 'tool_call'; messageId: string; toolCallId: string; name: string; category: 'server' | 'client'; mutating: boolean; interactive: boolean; status: string; args: unknown }
     | { t: 'tool_result'; messageId: string; toolCallId: string; name: string; result: unknown }
     | { t: 'status'; status: ConversationStatus; reason?: string }
+    /** Artefact déposé (13 §6.1) : identifiants seulement, le contenu se lit par l'API puis se déchiffre sous `CK`. */
+    | { t: 'artifact'; messageId: string; toolCallId: string; artifactId: string }
     | ({ t: 'usage' } & UsageFrame)
     | { t: 'error'; code: string; detail?: string }
     | { t: 'snapshot'; state: SnapshotState }
@@ -45,6 +47,7 @@ export type AgentStreamEvent =
     | { type: 'tool_call_client_required'; toolCallId: string; name: string; args: unknown; mutating: boolean; interactive: boolean }
     | { type: 'tool_call_result'; toolCallId: string; name: string; result: unknown; args?: unknown }
     | { type: 'status'; status: ConversationStatus }
+    | { type: 'artifact'; messageId: string; toolCallId: string; artifactId: string }
     | { type: 'done' }
     | { type: 'error'; error: string };
 
@@ -90,6 +93,7 @@ export function toAgentEvent(ev: RuntimeEvent): AgentStreamEvent | null {
             return null;
         case 'tool_result': return { type: 'tool_call_result', toolCallId: ev.toolCallId, name: ev.name, result: ev.result };
         case 'status': return ev.status === 'idle' ? { type: 'done' } : { type: 'status', status: ev.status };
+        case 'artifact': return { type: 'artifact', messageId: ev.messageId, toolCallId: ev.toolCallId, artifactId: ev.artifactId };
         case 'error': return { type: 'error', error: runtimeErrorText(ev.code) };
         default: return null;
     }

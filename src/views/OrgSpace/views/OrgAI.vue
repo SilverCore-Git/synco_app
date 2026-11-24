@@ -125,6 +125,17 @@
                   :queued-message="lastQueuedText"
                 />
               </template>
+              <template #artifact="{ messageId, toolCallId, artifactId }">
+                <RuntimeArtifact
+                  v-if="openedOrg && activeSessionId && isRuntime"
+                  :org-id="openedOrg.id"
+                  :session-id="activeSessionId"
+                  :message-id="messageId"
+                  :tool-call-id="toolCallId"
+                  :artifact-id="artifactId"
+                  :offline="runtimeReadOnly"
+                />
+              </template>
             </AgentTurn>
             <p v-if="msg.usage" class="text-[11px] text-(--text2)/70 mt-1">
               {{ formatTokenCount(msg.usage.totalTokens) }} tokens<template v-if="msg.usage.reasoningTokens"> (dont {{ formatTokenCount(msg.usage.reasoningTokens) }} de raisonnement)</template>
@@ -373,6 +384,7 @@ import LocalModelPanel from '../components/ai/LocalModelPanel.vue';
 import AiComposerControls from '../components/ai/AiComposerControls.vue';
 import { recordUsage, recordRuntimeUsage, recordRuntimeTool } from '@/services/aiUsageStats';
 import RuntimePlanPanel from '../components/ai/RuntimePlanPanel.vue';
+import RuntimeArtifact from '@/services/aiRuntime/artifacts/RuntimeArtifact.vue';
 import { useRuntimeConversation } from '@/services/aiRuntime/conversation/useRuntimeConversation';
 import { connectRuntimeConversation } from '@/services/aiRuntime/conversation/connect';
 import { linkBanner, statusLabel, isBusyStatus } from '@/services/aiRuntime/conversation/status';

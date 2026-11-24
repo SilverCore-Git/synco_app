@@ -9,6 +9,8 @@ export interface ToolStep {
     mutating?: boolean;
     interactive?: boolean;
     result?: any;
+    /** Message assistant qui porte l'appel (identifiant stocké), pour rattacher un artefact (13 §6.2). */
+    messageId?: string;
 }
 
 /** Statuts de point affichables par TimelineGutter — ceux des tools, plus 'text'/'thinking' pour les segments sans ToolStep. */
@@ -20,7 +22,9 @@ export type TurnPart =
     /** Raisonnement du modèle avant sa réponse — affiché replié, façon "Réflexion (Xs)". */
     | { type: 'thinking'; text: string; durationMs?: number }
     /** Plan d'action proposé par l'agent (`propose_actions`, 12) : rendu par la carte de plan, jamais comme un outil. */
-    | { type: 'plan'; toolCallId: string };
+    | { type: 'plan'; toolCallId: string }
+    /** Fichier envoyé par l'agent (`send_file`, 13) : référence seulement, jamais de contenu dans le fil. */
+    | { type: 'artifact'; messageId: string; toolCallId: string; artifactId: string };
 
 /** Libellés/icônes français par tool — utilisés par ToolStepItem pour l'affichage replié. */
 export const TOOL_LABELS: Record<string, { label: string; icon: string }> = {
