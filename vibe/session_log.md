@@ -1630,3 +1630,15 @@ Brancher `planKinds` dans `deviceRunner` quand un lot ajoute un kind.
 
 ### **Vérifications**
 `vue-tsc` par node : 0 erreur (détection vérifiée). `bun test src/services src/components` : 369 réussis (362 avant).
+## 📅 **2026-11-24 - Lot L15d (app) : rendu des résultats du domaine members**
+
+**Statut** : 🟢 code, tests et vue-tsc faits ; recette navigateur à faire.
+
+### **Changements**
+`components/ai/results/MembersResult.vue` (rendu des résultats des outils `members`, via le registre par domaine) et `membersResultRows.ts` (lignes affichées, pures et testées). Tout texte de tiers (noms, rôles, e-mails) est interpolé, jamais rendu en HTML ; le lien d'invitation s'affiche en texte à copier.
+
+### **Vérifications**
+`vue-tsc` par node : 0 erreur (détection vérifiée). `bun test src/services src/components` : 368 réussis (362 avant).
+
+### **Reste ouvert**
+`ToolResultBody.vue` garde une branche en dur pour `list_members` (avant le rendu de domaine) : elle lit un tableau, donc `list_members` garde ce format côté API. Recette Firefox : cartes de rôles, d'invitations, de permissions et lien d'invitation.
