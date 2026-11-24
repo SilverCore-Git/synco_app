@@ -851,7 +851,7 @@ const executeClientTool = async (name: string, args: any, clientValue?: string):
 
   // Outils client déclarés par un module `planKinds/<kind>.ts` (registre L15-0) : aucun ajout ici par domaine.
   const declared = planClientTool(name);
-  if (declared) return await declared.run(args ?? {});
+  if (declared) return await declared.run(args ?? {}, { orgId });
 
   throw new Error(`Outil client inconnu: ${name}`);
 };

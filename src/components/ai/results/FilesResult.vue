@@ -62,9 +62,12 @@
 import { computed } from 'vue';
 import type { ToolStep } from '@/views/OrgSpace/components/ai/agentTypes';
 import { buildFilesView, isTruncated } from './filesResultModel';
+import { rememberFileNames } from '../summaries/fileNames';
 
 const props = defineProps<{ tool: ToolStep }>();
 
+// Les cartes de confirmation suivantes montrent le nom plutôt que l'identifiant.
+rememberFileNames(props.tool.name, props.tool.result);
 const view = computed(() => buildFilesView(props.tool.name, props.tool.result));
 const truncated = computed(() => isTruncated(props.tool.result));
 

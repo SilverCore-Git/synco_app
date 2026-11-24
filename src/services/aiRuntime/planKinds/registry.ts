@@ -13,7 +13,8 @@ export interface PlanClientTool {
     /** Libellé et icône de la carte de l'outil (`toolLabel`). */
     label: string;
     icon: string;
-    run(args: Record<string, unknown>): Promise<unknown>;
+    /** `orgId` : l'organisation de la CONVERSATION ; tout identifiant venu du modèle est recoupé avec elle. */
+    run(args: Record<string, unknown>, ctx: { orgId: string }): Promise<unknown>;
 }
 
 export interface PlanKindExecutor {
@@ -25,6 +26,11 @@ export interface PlanKindExecutor {
      * Description du kind pour le validateur de plan (`validatePlan`, règle 4) et l'affichage. SANS `schema`
      * le kind reste refusé (`plan_kind`) : un exécutant seul ne rend pas un kind admissible.
      */
+    /**
+     * Outil de l'agent qui propose ce kind. Le kind n'est admis que si cet outil est disponible pour l'org
+     * (au manifeste, politique non `deny`) : sans l'outil, `plan_kind`.
+     */
+    tool?: string;
     schema?: ArgsSchema;
     /** Champs exportables vers `argsRefs` (défaut : `id`). */
     exports?: readonly string[];

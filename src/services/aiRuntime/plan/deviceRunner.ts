@@ -169,7 +169,8 @@ export async function runDevicePhase(deps: RunnerDeps): Promise<PhaseResult> {
         const entry = (opened.plan.actions as JsonValue[])[n - 1];
         const action = isObj(entry) ? entry : null;
         const kind = action?.kind;
-        if (!action || !isDeviceKind(kind) || !isObj(action.args)) { await fail(n, 'failed'); return; }
+        // Seule une action dont l'API dit `executor: device` est lancée ici, jamais celle d'un autre exécutant.
+        if (!action || !isDeviceKind(kind) || !isObj(action.args) || v.actions.find(a => a.n === n)?.executor !== 'device') { await fail(n, 'failed'); return; }
         // `progress executing` d'abord : s'il est refusé, rien n'est lancé (jamais de relance à l'aveugle).
         try {
             await report(n, 'executing');

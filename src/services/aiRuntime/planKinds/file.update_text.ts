@@ -7,6 +7,8 @@
  */
 import type { ArgsSchema, JsonObject } from '@/assets/utils/aiActionPlan';
 import { TextFileError } from '@/services/fileTextCodec';
+import { knownFileName } from '@/components/ai/summaries/fileNames';
+import { cleanText } from '../plan/planLabels';
 import { DeviceNotSentError } from '../plan/deviceErrors';
 import type { PlanKindExecutor } from './registry';
 
@@ -21,19 +23,20 @@ const schema: ArgsSchema = new Map([
 
 const executor: PlanKindExecutor = {
     kind: 'file.update_text',
+    tool: 'update_text_file',
     schema,
     exports: ['id', 'spaceId'],
-    label: a => `Modifier le contenu du fichier ${typeof a.fileId === 'string' ? a.fileId.slice(0, 40) : ''}`.trim(),
+    label: a => { const name = knownFileName(a.fileId); return name ? `Modifier le contenu de « ${cleanText(name, 50)} »` : `Modifier le contenu du fichier ${typeof a.fileId === 'string' ? a.fileId.slice(0, 40) : ''}`.trim(); },
     chip: n => `${n} ${n > 1 ? 'fichiers modifiés' : 'fichier modifié'}`,
     icon: 'bi-file-earmark-diff',
     title: "Modification d'un fichier texte",
-    async execute(args) {
+    async execute(args, planHeader, orgId) {
         const fileId = str(args.fileId);
         const content = str(args.content);
         const baseVersion = str(args.baseVersion);
         if (!fileId || content === undefined || !baseVersion) throw new DeviceNotSentError('invalid_args');
         try {
-            return await (await files()).updateTextFile(fileId, content, baseVersion);
+            return await (await files()).updateTextFile(fileId, orgId, content, baseVersion, planHeader);
         } catch (e) {
             // Refus local avant tout envoi : l'action est `failed` avec le code (12 §4.2), jamais `unknown_outcome`.
             if (e instanceof TextFileError) throw new DeviceNotSentError(e.code);
@@ -43,20 +46,20 @@ const executor: PlanKindExecutor = {
     clientTools: [
         {
             name: 'read_file', label: "Lecture d'un fichier", icon: 'bi-file-earmark-text',
-            async run(args) {
+            async run(args, { orgId }) {
                 const max = typeof args.maxBytes === 'number' ? args.maxBytes : undefined;
                 if (typeof args.fileId !== 'string') throw new Error('fileId manquant');
-                const r = await (await files()).readTextFile(args.fileId, max);
+                const r = await (await files()).readTextFile(args.fileId, orgId, max);
                 return { id: r.id, name: r.name, spaceId: r.spaceId, version: r.version, content: r.content, truncated: r.truncated };
             },
         },
         {
             name: 'update_text_file', label: "Modification d'un fichier texte", icon: 'bi-file-earmark-diff',
-            async run(args) {
+            async run(args, { orgId }) {
                 const { fileId, content, baseVersion } = args;
                 if (typeof fileId !== 'string' || typeof content !== 'string' || typeof baseVersion !== 'string') throw new Error('Arguments invalides');
                 try {
-                    return await (await files()).updateTextFile(fileId, content, baseVersion);
+                    return await (await files()).updateTextFile(fileId, orgId, content, baseVersion);
                 } catch (e) {
                     // Le modèle doit pouvoir relire le fichier : `file_changed` est un résultat d'outil, pas un plantage.
                     if (e instanceof TextFileError) return { error: e.code, note: e.code === 'file_changed' ? 'Le fichier a changé depuis ta lecture : relis-le avec read_file puis recommence.' : undefined };

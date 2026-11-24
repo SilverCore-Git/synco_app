@@ -51,7 +51,7 @@ describe('rendu du domaine Fichiers', () => {
     test('résumés de confirmation des outils sensibles', () => {
         const mods = { './filesSummaries.ts': filesSummaries };
         expect(Object.keys(buildSummaryRegistry(mods)).sort()).toEqual(['delete_file', 'delete_folder', 'move_files', 'move_folders', 'rename_folder', 'update_text_file']);
-        expect(summarizeTool('move_files', { fileIds: ['a', 'b'], toFolderId: null }, noSummaryContext, mods)).toBe('Déplacer 2 fichiers vers la racine de l’espace');
+        expect(summarizeTool('move_files', { fileIds: ['a', 'b'], toFolderId: null }, noSummaryContext, mods)).toBe('Déplacer 2 fichiers ((identifiant a), (identifiant b)) vers la racine de l’espace');
         expect(summarizeTool('delete_folder', { folderId: 'd1' }, noSummaryContext, mods)).toContain('tous les fichiers');
     });
 });
