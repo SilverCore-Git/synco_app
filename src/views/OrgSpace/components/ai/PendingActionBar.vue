@@ -50,9 +50,9 @@
                 <span class="icon-badge w-9 h-9 rounded-full bg-(--primary)/15 flex items-center justify-center shrink-0">
                     <i :class="icon" class="text-(--primary) text-base relative z-10"></i>
                 </span>
-                <span class="min-w-0 truncate">
+                <span class="min-w-0 break-words">
                     <span class="font-medium">Synco AI veut : {{ label }}</span>
-                    <span v-if="summary" class="text-(--text2)"> — {{ summary }}</span>
+                    <span v-if="summary" class="text-(--text2) break-all"> — {{ summary }}</span>
                 </span>
             </div>
             <TransitionGroup name="list" tag="div" appear class="flex flex-wrap gap-2">
@@ -74,6 +74,10 @@ import { ref, computed } from 'vue';
 import type { ToolStep } from './agentTypes';
 import { toolLabel } from './agentTypes';
 import IconSelector from '@/components/common/IconSelector.vue';
+import { openedOrg } from '@/assets/var';
+import { useCalendarAccess } from '@/composables/useCalendarAccess';
+import { summarizeTool, type SummaryContext } from '@/components/ai/summaries/summaryRegistry';
+import { summaryModules } from '@/components/ai/summaries/summaryModules';
 
 const props = defineProps<{ tool: ToolStep }>();
 const emit = defineEmits<{
@@ -101,8 +105,24 @@ const args = computed<any>(() => {
 
 // Un champ représentatif par outil, pour donner un aperçu sans déplier le détail complet du tool
 // dans la timeline — juste assez pour décider sans avoir à aller chercher l'info ailleurs.
+const calendarAccess = useCalendarAccess();
+if (props.tool.name === 'respond_calendar_access' && openedOrg.value) void calendarAccess.fetchGrants(openedOrg.value.id);
+
+// Contexte local des résumés de domaine : noms de l'annuaire de l'org, partages d'agenda déjà chargés.
+const summaryContext: SummaryContext = {
+    userName: id => openedOrg.value?.members?.find(m => m.userId === id)?.user?.name ?? null,
+    grant: id => {
+        const owned = calendarAccess.asOwner.value.find(g => g.id === id);
+        if (owned) return { who: owned.grantee?.name ?? 'Membre', level: owned.level === 'WRITE' ? 'modification' : 'lecture seule', direction: 'owner' };
+        const received = calendarAccess.asGrantee.value.find(g => g.id === id);
+        return received ? { who: received.owner?.name ?? 'Membre', level: received.level === 'WRITE' ? 'modification' : 'lecture seule', direction: 'grantee' } : null;
+    },
+};
+
 const summary = computed(() => {
     const a = args.value;
+    const domainSummary = summarizeTool(props.tool.name, a, summaryContext, summaryModules);
+    if (domainSummary) return domainSummary;
     switch (props.tool.name) {
         case 'create_space': return a.name;
         case 'create_task': return a.title;
