@@ -1598,3 +1598,23 @@ vue-tsc 0 erreur (détection vérifiée) ; `bun test src/services` : 348 réussi
 
 ### **Reste ouvert**
 Recette Firefox (carte, visionneuse, téléchargement, enregistrement, hors ligne). Le sélecteur propose les espaces à la racine seulement (pas de liste de dossiers dans le store). Route de liste `GET /artifacts` non utilisée par l'UI (seuls les artefacts référencés par un appel s'affichent, 13 §6.3).
+
+---
+
+## 📅 **2026-11-24 - Lot L15-0 (app) : socle des outils de l'agent**
+
+**Statut** : ✅ **TERMINÉ**
+
+### **Changements**
+- Registre des rendus par domaine : `components/ai/results/` (`resultRegistry.ts`, `resultModules.ts` par `import.meta.glob('./*Result.vue')`, `toolDomains.ts`) ; `ToolResultBody.vue` utilise le rendu du domaine s'il existe, sinon le rendu actuel. Vide : aucun `<Domaine>Result.vue` pour l'instant.
+- Registre des exécutants de kind : `services/aiRuntime/planKinds/` (`registry.ts`, `index.ts`), vide. Non branché sur `executeDeviceAction` (liste fermée `DEVICE_KINDS`).
+- `loadToolManifest` accepte `{ version, tools }` et l'ancien tableau ; retient domaines et version.
+- Réglages runtime : « Automatique » n'est plus proposé pour un outil sensible (PC86), un `auto` déjà saisi retombe sur « Demander ».
+
+### **Vérifications**
+`vue-tsc` par node : 0 erreur (détecte une erreur introduite volontairement). `bun test src/services` : 354 réussis (349 avant) ; `src/components` : 3.
+
+### **Prochaines Étapes**
+Brancher `planKinds` dans `deviceRunner` quand un lot ajoute un kind.
+
+**Corrections L15-0 après revue** : enveloppe `<untrusted>` et bloc de prompt dans l'agent navigateur (`services/agent/untrusted.ts`), rechargement des outils au changement d'org dans les réglages runtime. `bun test src/services src/components` : 362 réussis.

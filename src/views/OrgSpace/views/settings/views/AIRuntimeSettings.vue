@@ -112,7 +112,7 @@
                         <span v-for="name in toolNames" :key="name" class="tool-chip">
                             <span class="font-medium">{{ name }}</span>
                             <select class="tool-select" :value="draft.toolPolicy[name]" :aria-label="`Politique de ${name}`" @change="setTool(name, ($event.target as HTMLSelectElement).value)">
-                                <option value="ask">Demander</option><option value="auto">Automatique</option><option value="deny">Refuser</option>
+                                <option value="ask">Demander</option><option v-if="!sensitiveTools.has(name)" value="auto">Automatique</option><option value="deny">Refuser</option>
                             </select>
                             <button type="button" class="text-(--text2) hover:text-(--text)" :aria-label="`Retirer ${name}`" @click="dropTool(name)"><i class="bi bi-x-lg text-xs"></i></button>
                         </span>
@@ -191,8 +191,16 @@ const load = async () => {
         loadFailed.value = true;
     }
 };
-onMounted(load);
-watch(orgId, () => { view.value = null; void load(); });
+onMounted(async () => { await load(); await loadTools(); });
+// Changement d'org : les outils et les sensibles de l'org précédente ne valent plus (PC86), on recharge tout.
+watch(orgId, async () => {
+    view.value = null;
+    tools.value = [];
+    sensitiveTools.value = new Set();
+    toolQuery.value = '';
+    await load();
+    await loadTools();
+});
 
 const policyDirty = computed(() => !!view.value && (
     draft.enabled !== view.value.policy.enabled
@@ -286,18 +294,27 @@ const savePolicy = async () => {
 
 // Outils
 const tools = ref<string[]>([]);
+/** Outils sensibles (R3, R4, RP) : jamais « Automatique » (PC86), l'API refuse de l'enregistrer. */
+const sensitiveTools = ref<Set<string>>(new Set());
 const toolQuery = ref('');
 const toolNames = computed(() => Object.keys(draft.toolPolicy).sort());
 const loadTools = async () => {
     if (tools.value.length || !orgId.value) return;
-    try { tools.value = (await loadToolManifest(orgId.value)).map(t => t.name).sort(); } catch { tools.value = []; }
+    try {
+        const asked = orgId.value;
+        const manifest = await loadToolManifest(asked);
+        if (asked !== orgId.value) return; // l'org a changé pendant le chargement : réponse périmée
+        tools.value = manifest.map(t => t.name).sort();
+        sensitiveTools.value = new Set(manifest.filter(t => t.sensitive).map(t => t.name));
+        for (const name of Object.keys(draft.toolPolicy)) if (sensitiveTools.value.has(name) && draft.toolPolicy[name] === 'auto') draft.toolPolicy = { ...draft.toolPolicy, [name]: 'ask' };
+    } catch { tools.value = []; }
 };
 const toolMatches = computed(() => {
     const q = toolQuery.value.trim().toLowerCase();
     return tools.value.filter(t => !(t in draft.toolPolicy) && t.toLowerCase().includes(q)).slice(0, 12);
 });
 const addTool = (name: string) => { draft.toolPolicy = { ...draft.toolPolicy, [name]: 'ask' }; toolQuery.value = ''; };
-const setTool = (name: string, v: string) => { if (v === 'auto' || v === 'ask' || v === 'deny') draft.toolPolicy = { ...draft.toolPolicy, [name]: v }; };
+const setTool = (name: string, v: string) => { if (v === 'auto' && sensitiveTools.value.has(name)) return; if (v === 'auto' || v === 'ask' || v === 'deny') draft.toolPolicy = { ...draft.toolPolicy, [name]: v }; };
 const dropTool = (name: string) => { const next = { ...draft.toolPolicy }; delete next[name]; draft.toolPolicy = next; };
 </script>
 

@@ -153,6 +153,9 @@
         <p v-if="docSearchHits.length === 0" class="text-xs text-(--text2)">Aucun extrait trouvé.</p>
     </div>
 
+    <!-- Rendu propre au domaine de l'outil (components/ai/results/<Domaine>Result.vue), s'il existe -->
+    <component :is="domainResult" v-else-if="domainResult && tool.status !== 'error' && !tool.result?.error" :tool="tool" @open-task="(t: unknown) => $emit('open-task', t)" />
+
     <!-- Erreur -->
     <p v-else-if="tool.status === 'error' || tool.result?.error" class="text-xs text-red-400">
         {{ tool.result?.error || 'Erreur lors de l\'exécution.' }}
@@ -191,6 +194,8 @@ import MarkdownDocumentPreview from '../popup/MarkdownDocumentPreview.vue';
 import { readDocumentation, type DocSection } from '@/services/DocumentationService';
 import { useToast } from '@/composables/useToast';
 import { openedOrg } from '@/assets/var';
+import { resultComponentFor } from '@/components/ai/results/toolDomains';
+import { resultModules } from '@/components/ai/results/resultModules';
 
 const props = defineProps<{ tool: ToolStep }>();
 defineEmits(['open-task']);
@@ -200,6 +205,7 @@ const router = useRouter();
 const orgId = route.params.orgId as string;
 const toast = useToast();
 
+const domainResult = computed(() => resultComponentFor(props.tool.name, resultModules));
 const searchResults = computed<any[]>(() => props.tool.result?.results || []);
 const createdTask = computed(() => (props.tool.name === 'create_task' ? props.tool.result : null));
 const createdSpace = computed(() => (props.tool.name === 'create_space' ? props.tool.result : null));
