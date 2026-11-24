@@ -1,5 +1,7 @@
 <template>
 
+    <div class="flex flex-col gap-2">
+
     <div v-if="view.kind === 'groups'" class="flex flex-col gap-3">
         <div v-for="group in view.groups" :key="group.id ?? 'unlisted'" class="flex flex-col gap-2">
             <p class="text-[10px] uppercase font-bold tracking-wider text-(--text)/50 flex items-center gap-1.5">
@@ -55,6 +57,10 @@
 
     <p v-else class="text-xs text-(--text2)">{{ view.text }}</p>
 
+    <p v-if="truncated" class="text-xs text-(--text2)">Résultat tronqué : affinez la demande pour voir la suite.</p>
+
+    </div>
+
 </template>
 
 <script setup lang="ts">
@@ -62,11 +68,12 @@
 import { computed } from 'vue';
 import type { ToolStep } from '@/views/OrgSpace/components/ai/agentTypes';
 import EntityRow from '@/views/OrgSpace/components/ai/EntityRow.vue';
-import { buildTasksView, statusIconOf } from './tasksResultModel';
+import { buildTasksView, isTruncated, statusIconOf } from './tasksResultModel';
 
 const props = defineProps<{ tool: ToolStep }>();
 defineEmits<{ (e: 'open-task', task: unknown): void }>();
 
 const view = computed(() => buildTasksView(props.tool.name, props.tool.result));
+const truncated = computed(() => isTruncated(props.tool.result));
 
 </script>

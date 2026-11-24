@@ -58,6 +58,9 @@ const DONE_LABELS: Record<string, string> = {
     reorder_my_tasks: 'Ordre de vos tâches mis à jour.',
 };
 
+/** Le serveur borne les lectures et signale `truncated` : la vue l'indique. */
+export const isTruncated = (result: unknown): boolean => isRecord(result) && result.truncated === true;
+
 export function buildTasksView(toolName: string, result: unknown): TasksResultView {
     switch (toolName) {
         case 'list_task_lists': {
@@ -89,7 +92,7 @@ export function buildTasksView(toolName: string, result: unknown): TasksResultVi
         case 'list_task_tags':
         case 'create_task_tag':
         case 'update_task_tag': {
-            const items = Array.isArray(result) ? result : [result];
+            const items = Array.isArray(result) ? result : isRecord(result) && Array.isArray(result.tags) ? result.tags : [result];
             const tags = items.filter(isRecord).flatMap(t => {
                 const id = str(t.id);
                 return id ? [{ id, name: str(t.name) ?? '?', color: safeTagColor(t.color) }] : [];

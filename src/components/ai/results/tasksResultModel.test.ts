@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { buildTasksView, safeTagColor, statusIconOf, taskRow } from './tasksResultModel';
+import { isTruncated, buildTasksView, safeTagColor, statusIconOf, taskRow } from './tasksResultModel';
 import { buildResultRegistry } from './resultRegistry';
 
 describe('rendu du domaine Tâches', () => {
@@ -48,5 +48,12 @@ describe('rendu du domaine Tâches', () => {
         expect(taskRow({ title: 'sans id' })).toBeNull();
         expect(statusIconOf('DONE')).toBe('bi-check-circle-fill');
         expect(statusIconOf(undefined)).toBe('bi-circle');
+    });
+
+    test('lectures bornées : { tags, truncated } est lu, l’indicateur est détecté', () => {
+        const v = buildTasksView('list_task_tags', { tags: [{ id: 'a', name: 'n', color: '#112233' }], truncated: true });
+        expect(v.kind).toBe('tags');
+        expect(isTruncated({ truncated: true })).toBe(true);
+        expect(isTruncated([])).toBe(false);
     });
 });
