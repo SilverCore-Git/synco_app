@@ -1583,3 +1583,18 @@ vue-tsc 0 erreur (détection vérifiée par une erreur volontaire) ; `bun test s
 
 ### **Reste ouvert**
 Recette Firefox : suppression avec et sans récupération par PIN, keyguard coupé, propriétaire d'org (409). Une autre cause de refus (403 super-admin) arrive après la désactivation du keyguard.
+
+---
+
+## 📅 **2026-11-24 - Lot L12b : fichiers de l'agent (artefacts), source réelle**
+
+**Statut** : 🟢 code, tests et vue-tsc faits ; recette navigateur à faire.
+
+### **Changements**
+`artifacts/artifactSource.ts` : `ArtifactSource` réelle (13 §7.1) : `meta` et `value` ouverts sous `CK` (AAD `sessionId:artifactId:artifact_meta` / `artifact`), JSON strict (champs exacts), liens `id`/`sessionId`/`messageId`/`toolCallId`, `ext` de la liste, taille 1..262144, sha256 minuscule, octets = `size`, empreinte ; tout écart = `ArtifactUnreadableError` (carte « Fichier illisible »). `artifactMatches` refuse désormais les majuscules. Trame `artifact` (events, connection, transcript), parts `artifact` en direct et au rechargement (`send_file` terminé, `ToolStep.messageId` posé par `convertStoredMessagesToChatMessages`). `RuntimeArtifact.vue` branché dans `AgentTurn` (slot `artifact`) pour `OrgAI.vue` et `AgentDockPanel.vue` ; `prepareDownload` / `saveVerified` (octet-stream, nom assaini, `createTextFile` hors plan). Vecteurs `scripts/e2ee-vectors/artifacts.json` (copie conforme) : 8 `encryptionCases` + 11 `verifyCases` rejoués.
+
+### **Vérifications**
+vue-tsc 0 erreur (détection vérifiée) ; `bun test src/services` : 348 réussis.
+
+### **Reste ouvert**
+Recette Firefox (carte, visionneuse, téléchargement, enregistrement, hors ligne). Le sélecteur propose les espaces à la racine seulement (pas de liste de dossiers dans le store). Route de liste `GET /artifacts` non utilisée par l'UI (seuls les artefacts référencés par un appel s'affichent, 13 §6.3).
