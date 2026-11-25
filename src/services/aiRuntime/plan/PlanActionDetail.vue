@@ -2,6 +2,15 @@
     <aside class="flex flex-col gap-3 text-sm text-(--text) min-w-0" aria-label="Détail de l'action">
         <h3 class="text-base font-bold leading-snug break-words">{{ action.label }}</h3>
         <p v-if="summary" class="break-words min-w-0 rounded-lg bg-(--text)/5 px-3 py-2">{{ summary }}</p>
+        <!-- Envoi au support : sujet et texte INTÉGRAUX, blancs compris (aucune coupe à 200 caractères) -->
+        <div v-if="support" class="flex flex-col gap-2 min-w-0">
+            <p>{{ support.recipient }}</p>
+            <div v-for="part in support.parts" :key="part.label" class="flex flex-col gap-1">
+                <p class="text-xs font-semibold text-(--text2)">{{ part.label }}</p>
+                <div class="max-h-60 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-(--text)/5 px-3 py-2">{{ part.text }}</div>
+            </div>
+            <p v-if="support.warning" class="text-xs font-semibold text-amber-500">{{ support.warning }}</p>
+        </div>
         <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
             <template v-for="l in lines" :key="l.field">
                 <dt class="text-(--text2)">{{ l.label }}</dt>
@@ -30,6 +39,7 @@ import { computed } from 'vue';
 import { argLines, type NameResolver } from './planLabels';
 import { summarizeTool } from '@/components/ai/summaries/summaryRegistry';
 import { summaryModules } from '@/components/ai/summaries/summaryModules';
+import { supportPreview } from '@/components/ai/summaries/supportPreview';
 import type { PlanActionModel, PlanModel } from './planModel';
 import { abandonText, STATE_TEXT, type ActionProgress } from './planProgress';
 
@@ -41,6 +51,7 @@ const lines = computed(() => argLines(props.action.args, props.resolver, props.a
 const summary = computed(() => props.action.tool
     ? summarizeTool(props.action.tool, props.action.args, { userName: id => props.resolver.resolve('user', id), spaceName: id => props.resolver.resolve('space', id), threadName: id => props.resolver.resolve('thread', id) }, summaryModules)
     : '');
+const support = computed(() => supportPreview(props.action.kind, props.action.args, props.action.argsRefs));
 const name = (n: number) => `« ${props.model.actions[n - 1]?.label ?? n} »`;
 const needs = computed(() => props.action.after.map(name));
 const neededBy = computed(() => (props.model.dependents[props.action.n - 1] ?? []).map(name));
