@@ -1,0 +1,3289 @@
+{
+  "description": "Types d'action ajoutés par L00i (12 §4.1, §4.2, §8.4 point 6, §9) : validation stricte, risque et sensibilité, politique effective, refus d'auto sur un outil sensible, exécutants conditionnels, condensats de cible, codes d'échec. Figés par la spécification ; rejoués par L15-0 (registre), L15f, L15-rt (worker, API) et l'app (validateur).",
+  "ids": {
+    "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+    "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+    "delegationId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+  },
+  "validationCases": [
+    {
+      "name": "plan de référence : les neuf kinds",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ]
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "message.send : champ inconnu",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ],
+              "senderId": "cm3userexample00000000001"
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "plan_invalid"
+    },
+    {
+      "name": "message.send : texte de 8 001 caractères",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ]
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "plan_invalid"
+    },
+    {
+      "name": "message.send : texte de 8 000 caractères",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ]
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "message.send : texte vide sans forwardOf",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ]
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "plan_invalid"
+    },
+    {
+      "name": "message.send : transfert, commentaire vide",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ],
+              "forwardOf": "cm3messageexample00000001"
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "message.send : transfert, commentaire de 2 001 caractères",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ],
+              "forwardOf": "cm3messageexample00000001"
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "plan_invalid"
+    },
+    {
+      "name": "message.send : 51 mentions",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+              "mentionUserIds": [
+                "cm3userexample00000000000",
+                "cm3userexample00000000001",
+                "cm3userexample00000000002",
+                "cm3userexample00000000003",
+                "cm3userexample00000000004",
+                "cm3userexample00000000005",
+                "cm3userexample00000000006",
+                "cm3userexample00000000007",
+                "cm3userexample00000000008",
+                "cm3userexample00000000009",
+                "cm3userexample00000000010",
+                "cm3userexample00000000011",
+                "cm3userexample00000000012",
+                "cm3userexample00000000013",
+                "cm3userexample00000000014",
+                "cm3userexample00000000015",
+                "cm3userexample00000000016",
+                "cm3userexample00000000017",
+                "cm3userexample00000000018",
+                "cm3userexample00000000019",
+                "cm3userexample00000000020",
+                "cm3userexample00000000021",
+                "cm3userexample00000000022",
+                "cm3userexample00000000023",
+                "cm3userexample00000000024",
+                "cm3userexample00000000025",
+                "cm3userexample00000000026",
+                "cm3userexample00000000027",
+                "cm3userexample00000000028",
+                "cm3userexample00000000029",
+                "cm3userexample00000000030",
+                "cm3userexample00000000031",
+                "cm3userexample00000000032",
+                "cm3userexample00000000033",
+                "cm3userexample00000000034",
+                "cm3userexample00000000035",
+                "cm3userexample00000000036",
+                "cm3userexample00000000037",
+                "cm3userexample00000000038",
+                "cm3userexample00000000039",
+                "cm3userexample00000000040",
+                "cm3userexample00000000041",
+                "cm3userexample00000000042",
+                "cm3userexample00000000043",
+                "cm3userexample00000000044",
+                "cm3userexample00000000045",
+                "cm3userexample00000000046",
+                "cm3userexample00000000047",
+                "cm3userexample00000000048",
+                "cm3userexample00000000049",
+                "cm3userexample00000000050"
+              ]
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "plan_invalid"
+    },
+    {
+      "name": "message.send : mention en double",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+              "mentionUserIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000002"
+              ]
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "plan_invalid"
+    },
+    {
+      "name": "message.send : 11 fichiers",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ],
+              "fileIds": [
+                "cm3fileexample00000000000",
+                "cm3fileexample00000000001",
+                "cm3fileexample00000000002",
+                "cm3fileexample00000000003",
+                "cm3fileexample00000000004",
+                "cm3fileexample00000000005",
+                "cm3fileexample00000000006",
+                "cm3fileexample00000000007",
+                "cm3fileexample00000000008",
+                "cm3fileexample00000000009",
+                "cm3fileexample00000000010"
+              ]
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "plan_invalid"
+    },
+    {
+      "name": "message.edit : messageId absent",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ]
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "plan_invalid"
+    },
+    {
+      "name": "dm.send : tool présent hors server.call",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ]
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            },
+            "tool": "send_dm"
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "plan_invalid"
+    },
+    {
+      "name": "file.update_text : baseVersion absente",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ]
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "plan_invalid"
+    },
+    {
+      "name": "file.update_text : baseVersion de 101 caractères",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ]
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "plan_invalid"
+    },
+    {
+      "name": "space.add_members : liste vide",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ]
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": []
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "plan_invalid"
+    },
+    {
+      "name": "space.add_members : 101 membres",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ]
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000000",
+                "cm3userexample00000000001",
+                "cm3userexample00000000002",
+                "cm3userexample00000000003",
+                "cm3userexample00000000004",
+                "cm3userexample00000000005",
+                "cm3userexample00000000006",
+                "cm3userexample00000000007",
+                "cm3userexample00000000008",
+                "cm3userexample00000000009",
+                "cm3userexample00000000010",
+                "cm3userexample00000000011",
+                "cm3userexample00000000012",
+                "cm3userexample00000000013",
+                "cm3userexample00000000014",
+                "cm3userexample00000000015",
+                "cm3userexample00000000016",
+                "cm3userexample00000000017",
+                "cm3userexample00000000018",
+                "cm3userexample00000000019",
+                "cm3userexample00000000020",
+                "cm3userexample00000000021",
+                "cm3userexample00000000022",
+                "cm3userexample00000000023",
+                "cm3userexample00000000024",
+                "cm3userexample00000000025",
+                "cm3userexample00000000026",
+                "cm3userexample00000000027",
+                "cm3userexample00000000028",
+                "cm3userexample00000000029",
+                "cm3userexample00000000030",
+                "cm3userexample00000000031",
+                "cm3userexample00000000032",
+                "cm3userexample00000000033",
+                "cm3userexample00000000034",
+                "cm3userexample00000000035",
+                "cm3userexample00000000036",
+                "cm3userexample00000000037",
+                "cm3userexample00000000038",
+                "cm3userexample00000000039",
+                "cm3userexample00000000040",
+                "cm3userexample00000000041",
+                "cm3userexample00000000042",
+                "cm3userexample00000000043",
+                "cm3userexample00000000044",
+                "cm3userexample00000000045",
+                "cm3userexample00000000046",
+                "cm3userexample00000000047",
+                "cm3userexample00000000048",
+                "cm3userexample00000000049",
+                "cm3userexample00000000050",
+                "cm3userexample00000000051",
+                "cm3userexample00000000052",
+                "cm3userexample00000000053",
+                "cm3userexample00000000054",
+                "cm3userexample00000000055",
+                "cm3userexample00000000056",
+                "cm3userexample00000000057",
+                "cm3userexample00000000058",
+                "cm3userexample00000000059",
+                "cm3userexample00000000060",
+                "cm3userexample00000000061",
+                "cm3userexample00000000062",
+                "cm3userexample00000000063",
+                "cm3userexample00000000064",
+                "cm3userexample00000000065",
+                "cm3userexample00000000066",
+                "cm3userexample00000000067",
+                "cm3userexample00000000068",
+                "cm3userexample00000000069",
+                "cm3userexample00000000070",
+                "cm3userexample00000000071",
+                "cm3userexample00000000072",
+                "cm3userexample00000000073",
+                "cm3userexample00000000074",
+                "cm3userexample00000000075",
+                "cm3userexample00000000076",
+                "cm3userexample00000000077",
+                "cm3userexample00000000078",
+                "cm3userexample00000000079",
+                "cm3userexample00000000080",
+                "cm3userexample00000000081",
+                "cm3userexample00000000082",
+                "cm3userexample00000000083",
+                "cm3userexample00000000084",
+                "cm3userexample00000000085",
+                "cm3userexample00000000086",
+                "cm3userexample00000000087",
+                "cm3userexample00000000088",
+                "cm3userexample00000000089",
+                "cm3userexample00000000090",
+                "cm3userexample00000000091",
+                "cm3userexample00000000092",
+                "cm3userexample00000000093",
+                "cm3userexample00000000094",
+                "cm3userexample00000000095",
+                "cm3userexample00000000096",
+                "cm3userexample00000000097",
+                "cm3userexample00000000098",
+                "cm3userexample00000000099",
+                "cm3userexample00000000100"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "plan_invalid"
+    },
+    {
+      "name": "space.add_members : 100 membres",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ]
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000000",
+                "cm3userexample00000000001",
+                "cm3userexample00000000002",
+                "cm3userexample00000000003",
+                "cm3userexample00000000004",
+                "cm3userexample00000000005",
+                "cm3userexample00000000006",
+                "cm3userexample00000000007",
+                "cm3userexample00000000008",
+                "cm3userexample00000000009",
+                "cm3userexample00000000010",
+                "cm3userexample00000000011",
+                "cm3userexample00000000012",
+                "cm3userexample00000000013",
+                "cm3userexample00000000014",
+                "cm3userexample00000000015",
+                "cm3userexample00000000016",
+                "cm3userexample00000000017",
+                "cm3userexample00000000018",
+                "cm3userexample00000000019",
+                "cm3userexample00000000020",
+                "cm3userexample00000000021",
+                "cm3userexample00000000022",
+                "cm3userexample00000000023",
+                "cm3userexample00000000024",
+                "cm3userexample00000000025",
+                "cm3userexample00000000026",
+                "cm3userexample00000000027",
+                "cm3userexample00000000028",
+                "cm3userexample00000000029",
+                "cm3userexample00000000030",
+                "cm3userexample00000000031",
+                "cm3userexample00000000032",
+                "cm3userexample00000000033",
+                "cm3userexample00000000034",
+                "cm3userexample00000000035",
+                "cm3userexample00000000036",
+                "cm3userexample00000000037",
+                "cm3userexample00000000038",
+                "cm3userexample00000000039",
+                "cm3userexample00000000040",
+                "cm3userexample00000000041",
+                "cm3userexample00000000042",
+                "cm3userexample00000000043",
+                "cm3userexample00000000044",
+                "cm3userexample00000000045",
+                "cm3userexample00000000046",
+                "cm3userexample00000000047",
+                "cm3userexample00000000048",
+                "cm3userexample00000000049",
+                "cm3userexample00000000050",
+                "cm3userexample00000000051",
+                "cm3userexample00000000052",
+                "cm3userexample00000000053",
+                "cm3userexample00000000054",
+                "cm3userexample00000000055",
+                "cm3userexample00000000056",
+                "cm3userexample00000000057",
+                "cm3userexample00000000058",
+                "cm3userexample00000000059",
+                "cm3userexample00000000060",
+                "cm3userexample00000000061",
+                "cm3userexample00000000062",
+                "cm3userexample00000000063",
+                "cm3userexample00000000064",
+                "cm3userexample00000000065",
+                "cm3userexample00000000066",
+                "cm3userexample00000000067",
+                "cm3userexample00000000068",
+                "cm3userexample00000000069",
+                "cm3userexample00000000070",
+                "cm3userexample00000000071",
+                "cm3userexample00000000072",
+                "cm3userexample00000000073",
+                "cm3userexample00000000074",
+                "cm3userexample00000000075",
+                "cm3userexample00000000076",
+                "cm3userexample00000000077",
+                "cm3userexample00000000078",
+                "cm3userexample00000000079",
+                "cm3userexample00000000080",
+                "cm3userexample00000000081",
+                "cm3userexample00000000082",
+                "cm3userexample00000000083",
+                "cm3userexample00000000084",
+                "cm3userexample00000000085",
+                "cm3userexample00000000086",
+                "cm3userexample00000000087",
+                "cm3userexample00000000088",
+                "cm3userexample00000000089",
+                "cm3userexample00000000090",
+                "cm3userexample00000000091",
+                "cm3userexample00000000092",
+                "cm3userexample00000000093",
+                "cm3userexample00000000094",
+                "cm3userexample00000000095",
+                "cm3userexample00000000096",
+                "cm3userexample00000000097",
+                "cm3userexample00000000098",
+                "cm3userexample00000000099"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "thread.add_members : membre en double",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ]
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "plan_invalid"
+    },
+    {
+      "name": "support.create : sujet de 201 caractères",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ]
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "plan_invalid"
+    },
+    {
+      "name": "kind inconnu space.create",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ]
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 8,
+            "kind": "space.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "plan_invalid"
+    },
+    {
+      "name": "thread.add_members : threadId par argsRefs vers un thread.create antérieur",
+      "plan": {
+        "v": 1,
+        "planId": "6c2d3e4f-5061-4b72-8c83-a4b5c6d7e8f9",
+        "sessionId": "0f0e0d0c-0b0a-4908-8706-050403020100",
+        "toolCallId": "call_9",
+        "createdAt": 1795000000,
+        "expiresAt": 1795604800,
+        "summary": "Plan de test des types L00i.",
+        "actions": [
+          {
+            "n": 1,
+            "kind": "message.send",
+            "args": {
+              "threadId": "cm3threadexample000000001",
+              "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+              "mentionUserIds": [
+                "cm3userexample00000000002"
+              ]
+            }
+          },
+          {
+            "n": 2,
+            "kind": "message.edit",
+            "args": {
+              "messageId": "cm3messageexample00000001",
+              "text": "Correction : 16 h."
+            }
+          },
+          {
+            "n": 3,
+            "kind": "dm.send",
+            "args": {
+              "peerId": "cm3userexample00000000002",
+              "text": "Peux-tu relire le compte rendu ?"
+            }
+          },
+          {
+            "n": 4,
+            "kind": "dm.edit",
+            "args": {
+              "dmMessageId": "cm3dmmessageexample000001",
+              "text": "Merci !"
+            }
+          },
+          {
+            "n": 5,
+            "kind": "file.update_text",
+            "args": {
+              "fileId": "cm3fileexample00000000001",
+              "content": "# Compte rendu\n",
+              "baseVersion": "v-17"
+            }
+          },
+          {
+            "n": 6,
+            "kind": "space.add_members",
+            "args": {
+              "spaceId": "cm3spaceexample0000000001",
+              "userIds": [
+                "cm3userexample00000000002",
+                "cm3userexample00000000003"
+              ]
+            }
+          },
+          {
+            "n": 7,
+            "kind": "thread.add_members",
+            "args": {
+              "userIds": [
+                "cm3userexample00000000003"
+              ]
+            },
+            "argsRefs": {
+              "threadId": "$1.id"
+            },
+            "after": [
+              1
+            ]
+          },
+          {
+            "n": 8,
+            "kind": "support.create",
+            "args": {
+              "subject": "Export impossible",
+              "text": "L'export PDF échoue depuis hier."
+            }
+          },
+          {
+            "n": 9,
+            "kind": "support.reply",
+            "args": {
+              "ticketId": "cm3ticketexample000000001",
+              "text": "Toujours le même problème."
+            },
+            "after": [
+              8
+            ]
+          }
+        ]
+      },
+      "expect": "ok"
+    }
+  ],
+  "kindRisk": [
+    {
+      "kind": "category.create",
+      "risk": "R1",
+      "sensitive": false,
+      "prechecked": true,
+      "autoAcceptAllowed": true
+    },
+    {
+      "kind": "thread.create",
+      "risk": "R1",
+      "sensitive": false,
+      "prechecked": true,
+      "autoAcceptAllowed": true
+    },
+    {
+      "kind": "folder.create",
+      "risk": "R1",
+      "sensitive": false,
+      "prechecked": true,
+      "autoAcceptAllowed": true
+    },
+    {
+      "kind": "file.create_text",
+      "risk": "R1",
+      "sensitive": false,
+      "prechecked": true,
+      "autoAcceptAllowed": true
+    },
+    {
+      "kind": "message.send",
+      "risk": "R1",
+      "sensitive": false,
+      "prechecked": true,
+      "autoAcceptAllowed": true
+    },
+    {
+      "kind": "message.edit",
+      "risk": "R2",
+      "sensitive": false,
+      "prechecked": true,
+      "autoAcceptAllowed": true
+    },
+    {
+      "kind": "dm.send",
+      "risk": "R1",
+      "sensitive": false,
+      "prechecked": true,
+      "autoAcceptAllowed": true
+    },
+    {
+      "kind": "dm.edit",
+      "risk": "R2",
+      "sensitive": false,
+      "prechecked": true,
+      "autoAcceptAllowed": true
+    },
+    {
+      "kind": "file.update_text",
+      "risk": "R2",
+      "sensitive": false,
+      "prechecked": true,
+      "autoAcceptAllowed": true
+    },
+    {
+      "kind": "space.add_members",
+      "risk": "RP",
+      "sensitive": true,
+      "prechecked": false,
+      "autoAcceptAllowed": false
+    },
+    {
+      "kind": "thread.add_members",
+      "risk": "RP",
+      "sensitive": true,
+      "prechecked": false,
+      "autoAcceptAllowed": false
+    },
+    {
+      "kind": "support.create",
+      "risk": "R4",
+      "sensitive": true,
+      "prechecked": false,
+      "autoAcceptAllowed": false
+    },
+    {
+      "kind": "support.reply",
+      "risk": "R4",
+      "sensitive": true,
+      "prechecked": false,
+      "autoAcceptAllowed": false
+    }
+  ],
+  "toolManifest": [
+    {
+      "name": "list_tasks",
+      "mutating": false,
+      "risk": "R0"
+    },
+    {
+      "name": "create_task",
+      "mutating": true,
+      "risk": "R1"
+    },
+    {
+      "name": "mark_notifications_read",
+      "mutating": true,
+      "risk": "R2p",
+      "defaultPolicy": "auto"
+    },
+    {
+      "name": "delete_task",
+      "mutating": true,
+      "risk": "R3"
+    },
+    {
+      "name": "remove_org_member",
+      "mutating": true,
+      "risk": "R3"
+    },
+    {
+      "name": "set_member_roles",
+      "mutating": true,
+      "risk": "RP"
+    },
+    {
+      "name": "create_email_report",
+      "mutating": true,
+      "risk": "R4"
+    },
+    {
+      "name": "web_search",
+      "mutating": false,
+      "risk": "R4",
+      "defaultPolicy": "auto",
+      "sensitiveAutoAllowed": true
+    },
+    {
+      "name": "legacy_tool",
+      "mutating": true
+    }
+  ],
+  "effectivePolicyCases": [
+    {
+      "tool": "list_tasks",
+      "toolPolicy": null,
+      "expectPolicy": "auto",
+      "expectSensitive": false,
+      "expectDeviceTreatsAsSensitive": false
+    },
+    {
+      "tool": "create_task",
+      "toolPolicy": null,
+      "expectPolicy": "ask",
+      "expectSensitive": false,
+      "expectDeviceTreatsAsSensitive": false
+    },
+    {
+      "tool": "mark_notifications_read",
+      "toolPolicy": null,
+      "expectPolicy": "auto",
+      "expectSensitive": false,
+      "expectDeviceTreatsAsSensitive": false
+    },
+    {
+      "tool": "delete_task",
+      "toolPolicy": null,
+      "expectPolicy": "ask",
+      "expectSensitive": true,
+      "expectDeviceTreatsAsSensitive": true
+    },
+    {
+      "tool": "remove_org_member",
+      "toolPolicy": null,
+      "expectPolicy": "ask",
+      "expectSensitive": true,
+      "expectDeviceTreatsAsSensitive": true
+    },
+    {
+      "tool": "set_member_roles",
+      "toolPolicy": null,
+      "expectPolicy": "ask",
+      "expectSensitive": true,
+      "expectDeviceTreatsAsSensitive": true
+    },
+    {
+      "tool": "create_email_report",
+      "toolPolicy": null,
+      "expectPolicy": "ask",
+      "expectSensitive": true,
+      "expectDeviceTreatsAsSensitive": true
+    },
+    {
+      "tool": "web_search",
+      "toolPolicy": null,
+      "expectPolicy": "auto",
+      "expectSensitive": true,
+      "expectDeviceTreatsAsSensitive": true
+    },
+    {
+      "tool": "legacy_tool",
+      "toolPolicy": null,
+      "expectPolicy": "ask",
+      "expectSensitive": null,
+      "expectDeviceTreatsAsSensitive": true
+    },
+    {
+      "tool": "delete_task",
+      "toolPolicy": "auto",
+      "expectPolicy": "ask",
+      "expectSensitive": true,
+      "expectDeviceTreatsAsSensitive": true
+    },
+    {
+      "tool": "create_task",
+      "toolPolicy": "auto",
+      "expectPolicy": "auto",
+      "expectSensitive": false,
+      "expectDeviceTreatsAsSensitive": false
+    },
+    {
+      "tool": "mark_notifications_read",
+      "toolPolicy": "ask",
+      "expectPolicy": "ask",
+      "expectSensitive": false,
+      "expectDeviceTreatsAsSensitive": false
+    },
+    {
+      "tool": "set_member_roles",
+      "toolPolicy": "deny",
+      "expectPolicy": "deny",
+      "expectSensitive": true,
+      "expectDeviceTreatsAsSensitive": true
+    }
+  ],
+  "policyWriteCases": [
+    {
+      "name": "auto sur un outil R1",
+      "tool": "create_task",
+      "value": "auto",
+      "expect": "ok"
+    },
+    {
+      "name": "auto sur un outil R3",
+      "tool": "delete_task",
+      "value": "auto",
+      "expect": "tool_policy_sensitive_auto"
+    },
+    {
+      "name": "auto sur un outil RP",
+      "tool": "set_member_roles",
+      "value": "auto",
+      "expect": "tool_policy_sensitive_auto"
+    },
+    {
+      "name": "auto sur un outil R4 (e-mail)",
+      "tool": "create_email_report",
+      "value": "auto",
+      "expect": "tool_policy_sensitive_auto"
+    },
+    {
+      "name": "ask sur un outil R3 (durcir)",
+      "tool": "remove_org_member",
+      "value": "ask",
+      "expect": "ok"
+    },
+    {
+      "name": "deny sur un outil RP",
+      "tool": "set_member_roles",
+      "value": "deny",
+      "expect": "ok"
+    },
+    {
+      "name": "ask sur un geste personnel R2p",
+      "tool": "mark_notifications_read",
+      "value": "ask",
+      "expect": "ok"
+    },
+    {
+      "name": "auto sur web_search (exception de la liste fermée)",
+      "tool": "web_search",
+      "value": "auto",
+      "expect": "ok"
+    }
+  ],
+  "executorCases": [
+    {
+      "name": "message.send, mode plan",
+      "mode": "plan",
+      "action": {
+        "n": 1,
+        "kind": "message.send",
+        "args": {
+          "threadId": "cm3threadexample000000001",
+          "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+          "mentionUserIds": [
+            "cm3userexample00000000002"
+          ]
+        }
+      },
+      "expect": "device"
+    },
+    {
+      "name": "message.send texte seul, mode autonome",
+      "mode": "auto",
+      "action": {
+        "n": 1,
+        "kind": "message.send",
+        "args": {
+          "threadId": "cm3threadexample000000001",
+          "text": "Bonjour à tous, la réunion est déplacée à 15 h.",
+          "mentionUserIds": [
+            "cm3userexample00000000002"
+          ]
+        }
+      },
+      "expect": "agent"
+    },
+    {
+      "name": "message.send avec fichier, mode autonome",
+      "mode": "auto",
+      "action": {
+        "n": 1,
+        "kind": "message.send",
+        "args": {
+          "threadId": "cm3threadexample000000001",
+          "text": "ci-joint",
+          "fileIds": [
+            "cm3fileexample00000000001"
+          ]
+        }
+      },
+      "expect": "device"
+    },
+    {
+      "name": "message.send avec liste de fichiers vide, mode autonome",
+      "mode": "auto",
+      "action": {
+        "n": 1,
+        "kind": "message.send",
+        "args": {
+          "threadId": "cm3threadexample000000001",
+          "text": "ok",
+          "fileIds": []
+        }
+      },
+      "expect": "agent"
+    },
+    {
+      "name": "transfert, mode autonome",
+      "mode": "auto",
+      "action": {
+        "n": 1,
+        "kind": "message.send",
+        "args": {
+          "threadId": "cm3threadexample000000002",
+          "text": "",
+          "forwardOf": "cm3messageexample00000001"
+        }
+      },
+      "expect": "device"
+    },
+    {
+      "name": "message.edit d'un message écrit à la main, mode autonome",
+      "mode": "auto",
+      "action": {
+        "n": 2,
+        "kind": "message.edit",
+        "args": {
+          "messageId": "cm3messageexample00000001",
+          "text": "Correction : 16 h."
+        }
+      },
+      "targetAuthor": null,
+      "expect": "device"
+    },
+    {
+      "name": "message.edit d'un message m3 ai (envoyé par l'appareil), mode autonome",
+      "mode": "auto",
+      "action": {
+        "n": 2,
+        "kind": "message.edit",
+        "args": {
+          "messageId": "cm3messageexample00000001",
+          "text": "Correction : 16 h."
+        }
+      },
+      "targetAuthor": "ai",
+      "expect": "device"
+    },
+    {
+      "name": "message.edit d'un message rt1 de la même délégation, mode autonome",
+      "mode": "auto",
+      "action": {
+        "n": 2,
+        "kind": "message.edit",
+        "args": {
+          "messageId": "cm3messageexample00000001",
+          "text": "Correction : 16 h."
+        }
+      },
+      "targetAuthor": "rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "targetAuthorSameUserRuntime": true,
+      "expect": "agent"
+    },
+    {
+      "name": "message.edit d'un message rt1 d'une autre personne, mode autonome",
+      "mode": "auto",
+      "action": {
+        "n": 2,
+        "kind": "message.edit",
+        "args": {
+          "messageId": "cm3messageexample00000001",
+          "text": "Correction : 16 h."
+        }
+      },
+      "targetAuthor": "rt1:b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+      "targetAuthorSameUserRuntime": false,
+      "expect": "device"
+    },
+    {
+      "name": "message.edit par argsRefs d'un message.send d'agent, mode autonome",
+      "mode": "auto",
+      "action": {
+        "n": 2,
+        "kind": "message.edit",
+        "args": {
+          "text": "v2"
+        },
+        "argsRefs": {
+          "messageId": "$1.id"
+        },
+        "after": [
+          1
+        ]
+      },
+      "refExecutors": {
+        "1": "agent"
+      },
+      "refKinds": {
+        "1": "message.send"
+      },
+      "expect": "agent"
+    },
+    {
+      "name": "message.edit, mode plan",
+      "mode": "plan",
+      "action": {
+        "n": 2,
+        "kind": "message.edit",
+        "args": {
+          "messageId": "cm3messageexample00000001",
+          "text": "Correction : 16 h."
+        }
+      },
+      "targetAuthor": "rt1:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "targetAuthorSameUserRuntime": true,
+      "expect": "device"
+    },
+    {
+      "name": "dm.send, mode autonome",
+      "mode": "auto",
+      "action": {
+        "n": 3,
+        "kind": "dm.send",
+        "args": {
+          "peerId": "cm3userexample00000000002",
+          "text": "Peux-tu relire le compte rendu ?"
+        }
+      },
+      "expect": "device"
+    },
+    {
+      "name": "file.update_text, mode autonome",
+      "mode": "auto",
+      "action": {
+        "n": 5,
+        "kind": "file.update_text",
+        "args": {
+          "fileId": "cm3fileexample00000000001",
+          "content": "# Compte rendu\n",
+          "baseVersion": "v-17"
+        }
+      },
+      "expect": "device"
+    },
+    {
+      "name": "space.add_members, mode autonome",
+      "mode": "auto",
+      "action": {
+        "n": 6,
+        "kind": "space.add_members",
+        "args": {
+          "spaceId": "cm3spaceexample0000000001",
+          "userIds": [
+            "cm3userexample00000000002",
+            "cm3userexample00000000003"
+          ]
+        }
+      },
+      "expect": "device"
+    },
+    {
+      "name": "thread.add_members, salon délégué, mode autonome",
+      "mode": "auto",
+      "action": {
+        "n": 7,
+        "kind": "thread.add_members",
+        "args": {
+          "threadId": "cm3threadexample000000001",
+          "userIds": [
+            "cm3userexample00000000003"
+          ]
+        }
+      },
+      "delegatedThreads": [
+        "cm3threadexample000000001"
+      ],
+      "expect": "agent"
+    },
+    {
+      "name": "thread.add_members, salon non délégué, mode autonome",
+      "mode": "auto",
+      "action": {
+        "n": 7,
+        "kind": "thread.add_members",
+        "args": {
+          "threadId": "cm3threadexample000000001",
+          "userIds": [
+            "cm3userexample00000000003"
+          ]
+        }
+      },
+      "delegatedThreads": [
+        "cm3threadexample000000002"
+      ],
+      "expect": "device"
+    },
+    {
+      "name": "thread.add_members, salon créé par une action d'agent, mode autonome",
+      "mode": "auto",
+      "action": {
+        "n": 2,
+        "kind": "thread.add_members",
+        "args": {
+          "userIds": [
+            "cm3userexample00000000003"
+          ]
+        },
+        "argsRefs": {
+          "threadId": "$1.id"
+        },
+        "after": [
+          1
+        ]
+      },
+      "refExecutors": {
+        "1": "agent"
+      },
+      "refKinds": {
+        "1": "thread.create"
+      },
+      "delegatedThreads": [],
+      "expect": "agent"
+    },
+    {
+      "name": "thread.add_members, salon créé par l'appareil, mode autonome",
+      "mode": "auto",
+      "action": {
+        "n": 2,
+        "kind": "thread.add_members",
+        "args": {
+          "userIds": [
+            "cm3userexample00000000003"
+          ]
+        },
+        "argsRefs": {
+          "threadId": "$1.id"
+        },
+        "after": [
+          1
+        ]
+      },
+      "refExecutors": {
+        "1": "device"
+      },
+      "refKinds": {
+        "1": "thread.create"
+      },
+      "delegatedThreads": [],
+      "expect": "device"
+    },
+    {
+      "name": "thread.add_members, salon délégué, mode plan",
+      "mode": "plan",
+      "action": {
+        "n": 7,
+        "kind": "thread.add_members",
+        "args": {
+          "threadId": "cm3threadexample000000001",
+          "userIds": [
+            "cm3userexample00000000003"
+          ]
+        }
+      },
+      "delegatedThreads": [
+        "cm3threadexample000000001"
+      ],
+      "expect": "device"
+    },
+    {
+      "name": "support.reply, mode autonome",
+      "mode": "auto",
+      "action": {
+        "n": 9,
+        "kind": "support.reply",
+        "args": {
+          "ticketId": "cm3ticketexample000000001",
+          "text": "Toujours le même problème."
+        },
+        "after": [
+          8
+        ]
+      },
+      "expect": "device"
+    }
+  ],
+  "targetDigests": [
+    {
+      "name": "message.send",
+      "input": {
+        "kind": "message.send",
+        "target": {
+          "threadId": "cm3threadexample000000001"
+        }
+      },
+      "canonical": "{\"kind\":\"message.send\",\"target\":{\"threadId\":\"cm3threadexample000000001\"}}",
+      "sha256Hex": "a019570dffea24d7cf6b52c60da980efad1c9fa860a57d3e88007cd35214a533"
+    },
+    {
+      "name": "message.send en réponse",
+      "input": {
+        "kind": "message.send",
+        "target": {
+          "threadId": "cm3threadexample000000001",
+          "replyTo": "cm3messageexample00000001"
+        }
+      },
+      "canonical": "{\"kind\":\"message.send\",\"target\":{\"replyTo\":\"cm3messageexample00000001\",\"threadId\":\"cm3threadexample000000001\"}}",
+      "sha256Hex": "2492b99e45bb3563cc1d0777eb62356d6feb0ed0c111d524269933c0633a1441"
+    },
+    {
+      "name": "message.edit",
+      "input": {
+        "kind": "message.edit",
+        "target": {
+          "messageId": "cm3messageexample00000001"
+        }
+      },
+      "canonical": "{\"kind\":\"message.edit\",\"target\":{\"messageId\":\"cm3messageexample00000001\"}}",
+      "sha256Hex": "a94395f1ed5d09cbe4f04e5c26deef8fd344524390dd4e59f478ec30dbced6e5"
+    },
+    {
+      "name": "message.edit par argsRefs (cible vide)",
+      "input": {
+        "kind": "message.edit",
+        "target": {},
+        "argsRefs": {
+          "messageId": "$1.id"
+        }
+      },
+      "canonical": "{\"argsRefs\":{\"messageId\":\"$1.id\"},\"kind\":\"message.edit\",\"target\":{}}",
+      "sha256Hex": "b8018ee4564e527805d5a3782839cd929805b99812a3401421f46e17c913c826"
+    },
+    {
+      "name": "thread.add_members, userIds triés",
+      "input": {
+        "kind": "thread.add_members",
+        "target": {
+          "threadId": "cm3threadexample000000001",
+          "userIds": [
+            "cm3userexample00000000002",
+            "cm3userexample00000000003"
+          ]
+        }
+      },
+      "canonical": "{\"kind\":\"thread.add_members\",\"target\":{\"threadId\":\"cm3threadexample000000001\",\"userIds\":[\"cm3userexample00000000002\",\"cm3userexample00000000003\"]}}",
+      "sha256Hex": "d8a69e8892afe65a373166f7dfcdce02e77d8a1e6dec414a26cf850e75bf7266"
+    }
+  ],
+  "targetLockCases": [
+    {
+      "name": "cible égale",
+      "digest": "a019570dffea24d7cf6b52c60da980efad1c9fa860a57d3e88007cd35214a533",
+      "call": {
+        "kind": "message.send",
+        "target": {
+          "threadId": "cm3threadexample000000001"
+        }
+      },
+      "routeTarget": {
+        "threadId": "cm3threadexample000000001"
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "salon de la route différent de la cible",
+      "digest": "a019570dffea24d7cf6b52c60da980efad1c9fa860a57d3e88007cd35214a533",
+      "call": {
+        "kind": "message.send",
+        "target": {
+          "threadId": "cm3threadexample000000001"
+        }
+      },
+      "routeTarget": {
+        "threadId": "cm3threadexample000000002"
+      },
+      "expect": "action_not_accepted"
+    },
+    {
+      "name": "réponse ajoutée par le runtime",
+      "digest": "a019570dffea24d7cf6b52c60da980efad1c9fa860a57d3e88007cd35214a533",
+      "call": {
+        "kind": "message.send",
+        "target": {
+          "threadId": "cm3threadexample000000001"
+        }
+      },
+      "routeTarget": {
+        "threadId": "cm3threadexample000000001",
+        "replyTo": "cm3messageexample00000001"
+      },
+      "expect": "action_not_accepted"
+    },
+    {
+      "name": "membre ajouté en plus par le runtime",
+      "digest": "d8a69e8892afe65a373166f7dfcdce02e77d8a1e6dec414a26cf850e75bf7266",
+      "call": {
+        "kind": "thread.add_members",
+        "target": {
+          "threadId": "cm3threadexample000000001",
+          "userIds": [
+            "cm3userexample00000000002",
+            "cm3userexample00000000003"
+          ]
+        }
+      },
+      "routeTarget": {
+        "threadId": "cm3threadexample000000001",
+        "userIds": [
+          "cm3userexample00000000001",
+          "cm3userexample00000000002",
+          "cm3userexample00000000003"
+        ]
+      },
+      "expect": "action_not_accepted"
+    },
+    {
+      "name": "mêmes membres dans un autre ordre",
+      "digest": "d8a69e8892afe65a373166f7dfcdce02e77d8a1e6dec414a26cf850e75bf7266",
+      "call": {
+        "kind": "thread.add_members",
+        "target": {
+          "threadId": "cm3threadexample000000001",
+          "userIds": [
+            "cm3userexample00000000002",
+            "cm3userexample00000000003"
+          ]
+        }
+      },
+      "routeTarget": {
+        "threadId": "cm3threadexample000000001",
+        "userIds": [
+          "cm3userexample00000000003",
+          "cm3userexample00000000002"
+        ]
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "cible annoncée non triée : condensat différent",
+      "digest": "d8a69e8892afe65a373166f7dfcdce02e77d8a1e6dec414a26cf850e75bf7266",
+      "call": {
+        "kind": "thread.add_members",
+        "target": {
+          "threadId": "cm3threadexample000000001",
+          "userIds": [
+            "cm3userexample00000000003",
+            "cm3userexample00000000002"
+          ]
+        }
+      },
+      "routeTarget": {
+        "threadId": "cm3threadexample000000001",
+        "userIds": [
+          "cm3userexample00000000002",
+          "cm3userexample00000000003"
+        ]
+      },
+      "expect": "action_not_accepted"
+    },
+    {
+      "name": "refs égales à la sortie enregistrée",
+      "digest": "b8018ee4564e527805d5a3782839cd929805b99812a3401421f46e17c913c826",
+      "call": {
+        "kind": "message.edit",
+        "target": {},
+        "argsRefs": {
+          "messageId": "$1.id"
+        },
+        "refs": {
+          "messageId": "cm3messageexample00000001"
+        }
+      },
+      "recordedOutputs": {
+        "1": {
+          "id": "cm3messageexample00000001",
+          "threadId": "cm3threadexample000000001"
+        }
+      },
+      "routeTarget": {
+        "messageId": "cm3messageexample00000001"
+      },
+      "expect": "ok"
+    },
+    {
+      "name": "refs différentes de la sortie enregistrée",
+      "digest": "b8018ee4564e527805d5a3782839cd929805b99812a3401421f46e17c913c826",
+      "call": {
+        "kind": "message.edit",
+        "target": {},
+        "argsRefs": {
+          "messageId": "$1.id"
+        },
+        "refs": {
+          "messageId": "cm3messageexample00000009"
+        }
+      },
+      "recordedOutputs": {
+        "1": {
+          "id": "cm3messageexample00000001",
+          "threadId": "cm3threadexample000000001"
+        }
+      },
+      "routeTarget": {
+        "messageId": "cm3messageexample00000009"
+      },
+      "expect": "action_not_accepted"
+    }
+  ],
+  "failureCases": [
+    {
+      "name": "space.add_members échoue (membre sans clé) : seule sa dépendante est ignorée (PC54)",
+      "actions": [
+        {
+          "n": 1,
+          "executor": "device",
+          "kind": "space.add_members"
+        },
+        {
+          "n": 2,
+          "executor": "device",
+          "kind": "message.send",
+          "after": [
+            1
+          ]
+        },
+        {
+          "n": 3,
+          "executor": "agent",
+          "kind": "server.call"
+        }
+      ],
+      "failedAt": 1,
+      "code": "member_without_key",
+      "expectStates": {
+        "1": "failed",
+        "2": "skipped",
+        "3": "done"
+      },
+      "expectOutcomeOf1": {
+        "n": 1,
+        "state": "failed",
+        "code": "member_without_key"
+      }
+    },
+    {
+      "name": "file.update_text échoue (fichier modifié) : rien d'autre ne dépend",
+      "actions": [
+        {
+          "n": 1,
+          "executor": "device",
+          "kind": "file.update_text"
+        },
+        {
+          "n": 2,
+          "executor": "device",
+          "kind": "message.send"
+        }
+      ],
+      "failedAt": 1,
+      "code": "file_changed",
+      "expectStates": {
+        "1": "failed",
+        "2": "done"
+      },
+      "expectOutcomeOf1": {
+        "n": 1,
+        "state": "failed",
+        "code": "file_changed"
+      }
+    },
+    {
+      "name": "outcome failed avec code et output : invalide",
+      "outcome": {
+        "n": 1,
+        "state": "failed",
+        "code": "file_changed",
+        "output": {
+          "id": "cm3fileexample00000000001"
+        }
+      },
+      "expect": "plan_invalid"
+    },
+    {
+      "name": "outcome done avec code : invalide",
+      "outcome": {
+        "n": 1,
+        "state": "done",
+        "code": "file_changed"
+      },
+      "expect": "plan_invalid"
+    }
+  ]
+}

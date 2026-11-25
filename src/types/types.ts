@@ -1,3 +1,4 @@
+import type { AgentMark } from '@/assets/utils/messageAuth';
 export type ThreadType = 'text' | 'vocal';
 export type NotificationType =
   | 'MESSAGE' | 'CALL' | 'MENTION' | 'INVITATION' | 'CUSTOM' | 'TASK_ASSIGNED'
@@ -195,6 +196,8 @@ export interface Message {
     iv: string | null;
     /** Authenticité d'un message de salon (FC7), posée au déchiffrement. */
     authState?: 'legacy' | 'unsigned' | 'verified' | 'invalid';
+    /** Message écrit par l'agent (m3, 12 §4.3) : mention « avec Synco AI », déclaration du texte (§10.7). */
+    agentMark?: AgentMark;
     edited: boolean | null;
     createdAt: string | Date;
     updatedAt: string | Date;
@@ -235,6 +238,8 @@ export interface DMMessage {
   securityState?: 'plaintext';
   /** Authenticité d'un DM (FC7), posée au déchiffrement. */
   authState?: 'legacy' | 'unsigned' | 'verified' | 'invalid';
+  /** MP écrit par l'agent (d3, 12 §4.3) : mention « avec Synco AI ». */
+  agentMark?: AgentMark;
     content: string;
     nonce: string;
     encryptedAesKey: string | null;

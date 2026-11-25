@@ -651,11 +651,11 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined, replayed 
 
         if (!msg) return null;
         
-        if (!msg.content || msg.content.trim() === "") return msg;
+        if (!msg.content || msg.content.trim() === "") return { ...msg, authState: undefined };
 
         // Check if E2EE is unlocked and we have a private key
         if (!E2EEUnloked.value || !privateKey.value) {
-            return { ...msg, content: "[🔒 E2EE non déverrouillé]" };
+            return { ...msg, content: "[🔒 E2EE non déverrouillé]", authState: undefined };
         }
 
         // Check if this message has E2EE data
@@ -668,7 +668,7 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined, replayed 
             // Contenu en clair (ou drapeau isE2EE posé à faux par le serveur) :
             // affiché avec un marqueur explicite, jamais comme un message
             // chiffré authentique (audit FC7).
-            return { ...msg, content: msg.content, securityState: 'plaintext' };
+            return { ...msg, content: msg.content, securityState: 'plaintext', authState: undefined };
         }
 
         const cached = getCachedPlaintext(msg.id, msg.nonce);
@@ -694,7 +694,7 @@ const decryptSingleMessage = async (msg: DMMessage | null | undefined, replayed 
         } 
         catch (cryptoErr) {
             console.error(`[E2EE] Échec du déchiffrement pour le message ${msg.id}:`, cryptoErr);
-            return { ...msg, content: undecryptableMessageText() };
+            return { ...msg, content: undecryptableMessageText(), authState: 'invalid' };
         }
 
 };
@@ -718,9 +718,11 @@ const knownPlaintexts = (list: DMMessage[]): Map<string, string> =>
 const resolveReplyLocally = (reply: DMMessage, known: Map<string, string>): DMMessage => {
     if (reply.decrypting === false) return reply;
     const local = known.get(reply.id) ?? (reply.nonce ? getCachedPlaintext(reply.id, reply.nonce) : undefined);
-    if (local !== undefined) return { ...reply, content: local, decrypting: false };
-    if (!reply.isE2EE || !reply.content) return { ...reply, decrypting: false };
-    return { ...reply, decrypting: true };
+    // `authState` servi jamais conservé : seul le déchiffrement local (ou le cache) le pose.
+    const cachedAuth = reply.nonce ? getCachedAuth(reply.id, reply.nonce) : undefined;
+    if (local !== undefined) return { ...reply, content: local, decrypting: false, authState: cachedAuth };
+    if (!reply.isE2EE || !reply.content) return { ...reply, decrypting: false, authState: undefined };
+    return { ...reply, decrypting: true, authState: undefined };
 };
 
 const attachReplies = (list: DMMessage[], known: Map<string, string>): DMMessage[] =>

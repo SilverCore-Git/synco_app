@@ -13,7 +13,7 @@
  * - plan arrêté (PC55, PC70) ou expiré : plus aucun démarrage, les actions en cours vont à leur terme ;
  * - claim perdu : on dépose quand même ce qui a été fait (12 §8.2) ; une issue incertaine est `unknown_outcome`.
  */
-import { parseArgRef, type JsonObject, type JsonValue } from '@/assets/utils/aiActionPlan';
+import { parseArgRef, type ExportField, type JsonObject, type JsonValue } from '@/assets/utils/aiActionPlan';
 import { fetchPlanView, openAgentResults, openPhaseResult, sealDevicePhaseResult, type OpenedPlan, type PhaseOutcome, type ServedPlanView } from '../actionPlan';
 import type { PlanLocalStore } from './planLocal';
 import { creationFailureState } from './deviceErrors';
@@ -72,7 +72,7 @@ export function cleanOutput(out: Record<string, unknown>): Record<string, string
     const id = out.id;
     if (typeof id !== 'string' || !id) return null;
     const o: Record<string, string> = { id };
-    if (typeof out.spaceId === 'string' && out.spaceId) o.spaceId = out.spaceId;
+    for (const k of ['spaceId', 'threadId', 'peerId'] as const) if (typeof out[k] === 'string' && out[k]) o[k] = out[k] as string;
     return o;
 }
 
@@ -137,7 +137,7 @@ export async function runDevicePhase(deps: RunnerDeps): Promise<PhaseResult> {
     };
 
     /** Valeur d'une référence `$m.champ` (12 §8.2 étape 3) ; `null` = incohérente ou absente. */
-    const resolveRef = (v: ServedPlanView, m: number, field: 'id' | 'spaceId'): string | null => {
+    const resolveRef = (v: ServedPlanView, m: number, field: ExportField): string | null => {
         const recorded = v.actions[m - 1]?.output?.[field];
         if (typeof recorded !== 'string') return null;
         const executor = opened.graph.actions[m - 1]?.executor;

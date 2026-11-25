@@ -255,7 +255,7 @@ import { useToast } from '@/composables/useToast';
 import { encryptMessageWithContentKey } from '@/assets/utils/crypto';
 import { encryptThreadMessageV2 } from '@/assets/utils/messageAuth';
 import { useMessageDraft, channelKeyCipher } from '@/composables/useMessageDraft';
-import { decryptMessages, decryptEditedMessage } from '@/assets/utils/decryptMessages';
+import { decryptMessages, decryptEditedMessage, markReplayedDeclarations } from '@/assets/utils/decryptMessages';
 import { uploadFiles } from '@/assets/uploadFile';
 import { getFileInfo } from '@/assets/utils/getFileIcon';
 import { extractReferenceTokens } from '@/composables/useReferences';
@@ -520,6 +520,7 @@ const loadMore = async () => {
     const scrollOffset = container ? container.scrollHeight - container.scrollTop : 0;
 
     messages.value = [...decryptedMore, ...messages.value];
+    markReplayedDeclarations(messages.value);
 
     await nextTick();
     if (container) container.scrollTop = container.scrollHeight - scrollOffset;
@@ -543,6 +544,8 @@ const subscribe = () => props.channel.subscribe({
         const decrypted = (await decryptMessages([msg], props.channel.encryptionKey.value))[0] ?? msg;
         if (conversation !== props.channel.id.value) return;
         messages.value.push(decrypted);
+        // Une déclaration déjà vue sur un autre message de la fenêtre : le plus récent est marqué rejoué (12 §10.7, étape 8).
+        markReplayedDeclarations(messages.value);
 
         const container = messagesContainer.value;
         if (container)
@@ -564,6 +567,7 @@ const subscribe = () => props.channel.subscribe({
             () => messages.value.find(m => m.id === editedMsg.id)
         );
         messages.value = messages.value.map(m => m.id === editedMsg.id ? updatedMsg : m);
+        markReplayedDeclarations(messages.value);
     },
 
     onDelete: (msgId) => {

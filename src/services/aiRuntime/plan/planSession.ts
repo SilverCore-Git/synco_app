@@ -15,6 +15,9 @@ import type { ManifestFlags } from '@/services/aiAutoAccept';
 import type { NameResolver } from './planLabels';
 import { buildPlanModel, isSmallPlan, type PlanModel } from './planModel';
 import type { LocalIdField } from '../actionPlan';
+import { buildTextDeclarations } from './textDeclarations';
+import { user } from '@/assets/var';
+import { privateSignKey } from '@/assets/utils/crypto';
 
 export interface PlanSessionDeps {
     api: ApiPort;
@@ -58,5 +61,10 @@ export const rejectPlan = (deps: PlanSessionDeps, planId: string): Promise<Serve
 export async function acceptPlan(deps: PlanSessionDeps, loaded: Extract<LoadedPlan, { state: 'ready' }>, checked: readonly number[], from: 'card' | 'graph'): Promise<ServedPlanView> {
     if (from === 'card' && !isSmallPlan(buildPlanModel(loaded.opened, deps.resolver, deps.flags))) throw new AiRuntimeError('plan_invalid');
     const body = buildAcceptDecision(loaded.opened, checked);
+    // PC94 : le texte de chaque message d'agent accepté est engagé par l'utilisateur ici, depuis le plan déchiffré.
+    const textDeclarations = await buildTextDeclarations(loaded.opened, body.accepted, {
+        ck: deps.ck, sessionId: deps.sessionId, orgId: deps.orgId, userId: user.value?.id, userSignKey: privateSignKey.value,
+    });
+    if (textDeclarations.length) body.textDeclarations = textDeclarations;
     return postPlanDecision(deps.api, deps.orgId, deps.sessionId, loaded.view.planId, body);
 }

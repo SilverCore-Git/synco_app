@@ -1,6 +1,10 @@
 import { decryptFromPeer, encryptForPeer, privateSignKey } from './crypto';
 import { noteMessageRevision } from './messageRevisions';
 import { lookupCreatorSignKey, readPinnedSignKey, verifyWithSignKeys, type SignatureTrust } from './keyTrust';
+import {
+    dmAadV3, dmSignedV3, formatD3Nonce, formatM3Iv, isD3Nonce, isM3Iv, isRt1Author, parseD3Nonce, parseM3Iv, rt1DelegationOf, threadAadV3,
+    threadSignedV3, verifyTextDeclaration, type DeclarationSignerTrust, type ParsedM3, type TextUnverifiedReason,
+} from './agentMessage';
 
 /**
  * Messages de salon authentifiés, format v2 (audit FC7 §1-2).
@@ -41,7 +45,8 @@ function parseRev(raw: string | undefined): number {
 
 const revSuffix = (rev: number) => (rev > 0 ? `|rev:${rev}` : '');
 
-export const isAuthenticatedIv = (ivField: string | null | undefined): boolean => !!ivField && ivField.startsWith(V2_PREFIX);
+/** Format authentifié : `m2` (humain) ou `m3` (écrit par l'agent, 12 §4.3). */
+export const isAuthenticatedIv = (ivField: string | null | undefined): boolean => !!ivField && (ivField.startsWith(V2_PREFIX) || isM3Iv(ivField));
 
 export function parseAuthenticatedIv(ivField: string): ParsedIv {
     const parts = ivField.slice(V2_PREFIX.length).split('.');
@@ -64,7 +69,12 @@ const aad = (threadId: string, senderId: string, clientMsgId: string, rev = 0) =
 const signedBytes = (threadId: string, senderId: string, clientMsgId: string, ivB64: string, ciphertextB64: string, rev = 0) =>
     enc.encode(`synco-sig-v1|thread|${threadId}|${senderId}|${clientMsgId}|${ivB64}|${ciphertextB64}${revSuffix(rev)}`);
 
-export interface MessageContext { threadId: string; senderId: string }
+export interface MessageContext {
+    threadId: string;
+    senderId: string;
+    /** Lecture d'un `m3` `rt1:` (12 §10.7) : org du salon et identité du message, pour la déclaration du texte. */
+    reader?: ThreadReaderContext;
+}
 
 /**
  * Chiffre un message de salon au format v2. `clientMsgId` : à reprendre de l'original pour une
@@ -98,13 +108,23 @@ export async function encryptThreadMessageV2(
     return { ciphertext, iv: `${V2_PREFIX}${ivB64}.${clientMsgId}.${signature}${rev > 0 ? `.${rev}` : ''}` };
 }
 
-/** Identifiant de message à reprendre pour une édition ; undefined si le message est ancien. */
-export const clientMsgIdOf = (ivField: string | null | undefined): string | undefined =>
-    isAuthenticatedIv(ivField) ? parseAuthenticatedIv(ivField!).clientMsgId : undefined;
+const safeM3 = (ivField: string): ParsedM3 | null => {
+    try { return parseM3Iv(ivField); } catch { return null; }
+};
 
-/** Révision d'un message v2 (0 = jamais édité), pour calculer la suivante lors d'une édition. */
-export const revisionOf = (ivField: string | null | undefined): number =>
-    isAuthenticatedIv(ivField) ? parseAuthenticatedIv(ivField!).rev : 0;
+/** Identifiant de message à reprendre pour une édition ; undefined si le message est ancien. */
+export const clientMsgIdOf = (ivField: string | null | undefined): string | undefined => {
+    if (!ivField) return undefined;
+    if (isM3Iv(ivField)) return safeM3(ivField)?.clientMsgId;
+    return ivField.startsWith(V2_PREFIX) ? parseAuthenticatedIv(ivField).clientMsgId : undefined;
+};
+
+/** Révision d'un message v2 / v3 (0 = jamais édité), pour calculer la suivante lors d'une édition. */
+export const revisionOf = (ivField: string | null | undefined): number => {
+    if (!ivField) return 0;
+    if (isM3Iv(ivField)) return safeM3(ivField)?.rev ?? 0;
+    return ivField.startsWith(V2_PREFIX) ? parseAuthenticatedIv(ivField).rev : 0;
+};
 
 /**
  * Clé épinglée, anciennes clés prouvées, puis anciennes clés désignées par la chaîne de transitions
@@ -153,7 +173,8 @@ export async function decryptThreadMessageV2(
     threadKey: CryptoKey,
     ctx: MessageContext,
     replayed = false
-): Promise<{ text: string; auth: MessageAuthState }> {
+): Promise<{ text: string; auth: MessageAuthState; agent?: AgentMark }> {
+    if (isM3Iv(ivField)) return decryptThreadMessageV3(ciphertextB64, ivField, threadKey, ctx, replayed);
     const parsed = parseAuthenticatedIv(ivField);
     const plain = await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv: fromB64(parsed.iv), additionalData: aad(ctx.threadId, ctx.senderId, parsed.clientMsgId, parsed.rev) },
@@ -201,7 +222,7 @@ const DM_V2_PREFIX = 'd2.';
 
 export interface DmContext { senderId: string; recipientId: string }
 
-export const isAuthenticatedDmNonce = (nonce: string | null | undefined): boolean => !!nonce && nonce.startsWith(DM_V2_PREFIX);
+export const isAuthenticatedDmNonce = (nonce: string | null | undefined): boolean => !!nonce && (nonce.startsWith(DM_V2_PREFIX) || isD3Nonce(nonce));
 
 function parseDmNonce(nonce: string): ParsedIv {
     const parts = nonce.slice(DM_V2_PREFIX.length).split('.');
@@ -209,11 +230,21 @@ function parseDmNonce(nonce: string): ParsedIv {
     return { iv: parts[0], clientMsgId: parts[1], signature: parts[2] ?? '', rev: parseRev(parts[3]) };
 }
 
-export const dmClientMsgIdOf = (nonce: string | null | undefined): string | undefined =>
-    isAuthenticatedDmNonce(nonce) ? parseDmNonce(nonce!).clientMsgId : undefined;
+const safeD3 = (nonce: string) => {
+    try { return parseD3Nonce(nonce); } catch { return null; }
+};
 
-export const dmRevisionOf = (nonce: string | null | undefined): number =>
-    isAuthenticatedDmNonce(nonce) ? parseDmNonce(nonce!).rev : 0;
+export const dmClientMsgIdOf = (nonce: string | null | undefined): string | undefined => {
+    if (!nonce) return undefined;
+    if (isD3Nonce(nonce)) return safeD3(nonce)?.clientMsgId;
+    return nonce.startsWith(DM_V2_PREFIX) ? parseDmNonce(nonce).clientMsgId : undefined;
+};
+
+export const dmRevisionOf = (nonce: string | null | undefined): number => {
+    if (!nonce) return 0;
+    if (isD3Nonce(nonce)) return safeD3(nonce)?.rev ?? 0;
+    return nonce.startsWith(DM_V2_PREFIX) ? parseDmNonce(nonce).rev : 0;
+};
 
 const dmAad = (ctx: DmContext, clientMsgId: string, rev = 0) =>
     enc.encode(`synco-dm-v2|${ctx.senderId}|${ctx.recipientId}|${clientMsgId}${revSuffix(rev)}`);
@@ -264,7 +295,8 @@ export async function decryptDmV2(
     myPrivateKey: CryptoKey,
     ctx: DmContext,
     replayed = false
-): Promise<{ text: string; auth: MessageAuthState }> {
+): Promise<{ text: string; auth: MessageAuthState; agent?: AgentMark }> {
+    if (isD3Nonce(msg.nonce)) return decryptDmV3(msg, aesKeyForMe, myPrivateKey, ctx, replayed);
     const parsed = parseDmNonce(msg.nonce);
     const text = await decryptFromPeer(msg.content, aesKeyForMe, parsed.iv, myPrivateKey, dmAad(ctx, parsed.clientMsgId, parsed.rev));
     let auth: MessageAuthState = replayed
@@ -287,4 +319,185 @@ export function findReplayedDms(msgs: Array<{ id: string; senderId: string; reci
         else seen.add(key);
     }
     return replayed;
+}
+
+
+// ---------------------------------------------------------------------------
+// Messages écrits par l'agent : formats m3 (salon) et d3 (MP), 12 §4.3 et §10.7 (L15f, PC88, PC94)
+// ---------------------------------------------------------------------------
+//
+// Mention « avec Synco AI » portée par un champ AUTHENTIFIÉ (`author`) : le serveur ne peut ni l'ôter ni
+// l'ajouter sans casser la signature. N'est écrit QUE pour un message écrit par l'agent (ou la révision d'un
+// message m3) ; un message écrit à la main reste m2 / d2. Octets exacts : agentMessage.ts (vecteurs message-v3.json).
+
+/** Ce que l'interface affiche sous un message de l'agent. */
+export type AgentMark =
+    | { author: 'ai' }
+    | {
+        author: 'rt1';
+        delegationId: string;
+        /** Déclaration du texte (12 §10.7) : `text_unverified` → avertissement « Texte non confirmé par <nom> ». */
+        text: 'text_verified' | 'text_unverified';
+        /** Raison interne (journal, détails) ; jamais affichée telle quelle. */
+        reason?: TextUnverifiedReason;
+        /** Action du plan de la déclaration, pour la détection du rejeu sur la fenêtre chargée (étape 8). */
+        action?: { planId: string; n: number };
+    };
+
+/**
+ * Vérification d'un auteur `rt1:` (12 §4.3 : mandat de la délégation, certificat, signature `csk`). Branchée par
+ * l'app quand le mandat est vérifiable ; SANS vérificateur, l'état est `invalid` (le message est masqué, comme toute
+ * origine non vérifiée). La déclaration du texte signée par l'utilisateur est contrôlée ensuite.
+ */
+export type Rt1AuthorVerifier = (input: {
+    delegationId: string;
+    senderId: string;
+    threadId: string;
+    signed: Uint8Array;
+    signature: Uint8Array;
+}) => Promise<'verified' | 'unsigned' | 'invalid'>;
+
+let rt1Verifier: Rt1AuthorVerifier | null = null;
+export const setRt1AuthorVerifier = (v: Rt1AuthorVerifier | null): void => { rt1Verifier = v; };
+
+/** Contexte du lecteur pour la déclaration du texte : org du salon et identité du message. */
+export interface ThreadReaderContext { orgId: string; messageId: string; replyToId: string | null }
+
+async function signOrThrow(bytes: string): Promise<string> {
+    // Un message de l'agent est toujours signé : une signature vide le rendrait `invalid` (12 §4.3).
+    if (!privateSignKey.value) throw new MessageAuthError('Clé de signature indisponible');
+    const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, privateSignKey.value, enc.encode(bytes) as BufferSource);
+    return toB64(new Uint8Array(sig));
+}
+
+/**
+ * Chiffre un message de salon écrit par l'agent (`m3`, auteur `ai`), envoyé par l'appareil et signé par la clé
+ * d'identité de l'utilisateur. `rev` toujours écrit (0 = original) ; pour une révision, reprendre `clientMsgId`.
+ */
+export async function encryptThreadMessageV3(
+    text: string,
+    threadKey: CryptoKey,
+    ctx: MessageContext,
+    clientMsgId: string = crypto.randomUUID(),
+    rev = 0
+): Promise<{ ciphertext: string; iv: string }> {
+    const ivBytes = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: ivBytes, additionalData: enc.encode(threadAadV3(ctx.threadId, ctx.senderId, clientMsgId, 'ai', rev)) },
+        threadKey,
+        enc.encode(text)
+    ));
+    const ciphertext = toB64(ct);
+    const ivB64 = toB64(ivBytes);
+    const signature = await signOrThrow(threadSignedV3(ctx.threadId, ctx.senderId, clientMsgId, 'ai', ivB64, ciphertext, rev));
+    return { ciphertext, iv: formatM3Iv({ iv: ivB64, clientMsgId, author: 'ai', signature, rev }) };
+}
+
+/** Lecteur de la déclaration : clés de signature servies de l'expéditeur (`unavailable` si aucune). */
+async function declarationSigner(senderId: string, bytes: Uint8Array, signature: Uint8Array): Promise<DeclarationSignerTrust> {
+    const served = lookupCreatorSignKey(senderId);
+    if (!served && !(await readPinnedSignKey(senderId))) return 'unavailable';
+    try {
+        const trust = await verifyWithSignKeys(senderId, served, async (jwk) => {
+            const key = await crypto.subtle.importKey('jwk', JSON.parse(jwk), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+            return crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, signature as BufferSource, bytes as BufferSource);
+        });
+        return trust === 'unknown' ? 'unavailable' : trust;
+    } catch {
+        return 'none';
+    }
+}
+
+/** Ordre des états, du plus fort au plus faible ; le plus faible des deux l'emporte. */
+const weaker = (a: MessageAuthState, b: MessageAuthState): MessageAuthState => {
+    const rank: Record<MessageAuthState, number> = { verified: 0, unsigned: 1, legacy: 2, invalid: 3 };
+    return rank[a] >= rank[b] ? a : b;
+};
+
+/**
+ * Déchiffre un `m3` et évalue son authenticité (12 §4.3) puis, pour un auteur `rt1:`, la déclaration du texte
+ * (12 §10.7) : un texte non confirmé est AFFICHÉ (texte de l'enveloppe, ou clair brut), jamais masqué.
+ */
+async function decryptThreadMessageV3(
+    ciphertextB64: string,
+    ivField: string,
+    threadKey: CryptoKey,
+    ctx: MessageContext,
+    replayed: boolean
+): Promise<{ text: string; auth: MessageAuthState; agent: AgentMark }> {
+    const p = parseM3Iv(ivField);
+    const plainBytes = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: fromB64(p.iv), additionalData: enc.encode(threadAadV3(ctx.threadId, ctx.senderId, p.clientMsgId, p.author, p.rev)) },
+        threadKey,
+        fromB64(ciphertextB64)
+    );
+    const plaintext = new TextDecoder().decode(plainBytes);
+    const signed = threadSignedV3(ctx.threadId, ctx.senderId, p.clientMsgId, p.author, p.iv, ciphertextB64, p.rev, p.td);
+    const noteKey = `thread|${ctx.threadId}|${ctx.senderId}|${p.clientMsgId}`;
+
+    if (!isRt1Author(p.author)) {
+        let auth: MessageAuthState = replayed || !p.signature ? 'invalid' : await verifySenderSignature(ctx.senderId, p.signature, enc.encode(signed));
+        if (auth !== 'invalid' && !await noteMessageRevision(noteKey, p.rev)) auth = 'invalid';
+        return { text: plaintext, auth, agent: { author: 'ai' } };
+    }
+
+    const delegationId = rt1DelegationOf(p.author)!;
+    // Sans vérificateur (03 §10 : mandat, certificat, `csk` couvrant `td`), un auteur `rt1:` n'est PAS vérifiable : il est
+    // `invalid` (masqué), jamais `unsigned` affiché. Le serveur ne peut donc pas faire passer un message pour celui de l'agent.
+    let auth: MessageAuthState = 'invalid';
+    if (!replayed && p.signature && rt1Verifier) {
+        try {
+            auth = await rt1Verifier({ delegationId, senderId: ctx.senderId, threadId: ctx.threadId, signed: enc.encode(signed), signature: fromB64(p.signature) });
+        } catch {
+            auth = 'invalid';
+        }
+    }
+    if (auth !== 'invalid' && !await noteMessageRevision(noteKey, p.rev)) auth = 'invalid';
+    if (auth === 'invalid') return { text: plaintext, auth, agent: { author: 'rt1', delegationId, text: 'text_unverified' } };
+
+    const rc = ctx.reader ?? null;
+    if (!rc) return { text: plaintext, auth, agent: { author: 'rt1', delegationId, text: 'text_unverified', reason: 'signer_unavailable' } };
+    const check = await verifyTextDeclaration(
+        { orgId: rc.orgId, threadId: ctx.threadId, senderId: ctx.senderId, messageId: rc.messageId, replyToId: rc.replyToId, rev: p.rev },
+        p.td,
+        plaintext,
+        { verifySigner: declarationSigner },
+    );
+    if (check.weakKey) auth = weaker(auth, 'unsigned');
+    return {
+        text: check.display,
+        auth,
+        agent: { author: 'rt1', delegationId, text: check.state, ...(check.reason ? { reason: check.reason } : {}), ...(check.action ? { action: check.action } : {}) },
+    };
+}
+
+/** Chiffre un MP écrit par l'agent (`d3`, auteur `ai`) ; `iv` du résultat est à envoyer dans le champ `nonce`. */
+export async function encryptDmV3(
+    text: string,
+    peerPublicKeyJWK: string,
+    myPublicKeyJWK: string | object | undefined,
+    ctx: DmContext,
+    clientMsgId: string = crypto.randomUUID(),
+    rev = 0
+) {
+    const r = await encryptForPeer(text, peerPublicKeyJWK, myPublicKeyJWK, enc.encode(dmAadV3(ctx.senderId, ctx.recipientId, clientMsgId, rev)));
+    const signature = await signOrThrow(dmSignedV3(ctx.senderId, ctx.recipientId, clientMsgId, r.iv, r.ciphertext, r.encryptedAesKey, r.selfEncryptedAesKey ?? '', rev));
+    return { ...r, iv: formatD3Nonce({ iv: r.iv, clientMsgId, signature, rev }) };
+}
+
+async function decryptDmV3(
+    msg: { content: string; nonce: string; encryptedAesKey: string | null | undefined; selfEncryptedAesKey: string | null | undefined },
+    aesKeyForMe: string,
+    myPrivateKey: CryptoKey,
+    ctx: DmContext,
+    replayed: boolean
+): Promise<{ text: string; auth: MessageAuthState; agent: AgentMark }> {
+    const p = parseD3Nonce(msg.nonce);
+    const text = await decryptFromPeer(msg.content, aesKeyForMe, p.iv, myPrivateKey, enc.encode(dmAadV3(ctx.senderId, ctx.recipientId, p.clientMsgId, p.rev)));
+    let auth: MessageAuthState = replayed || !p.signature
+        ? 'invalid'
+        : await verifySenderSignature(ctx.senderId, p.signature,
+            enc.encode(dmSignedV3(ctx.senderId, ctx.recipientId, p.clientMsgId, p.iv, msg.content, msg.encryptedAesKey ?? '', msg.selfEncryptedAesKey ?? '', p.rev)));
+    if (auth !== 'invalid' && !await noteMessageRevision(`dm|${ctx.senderId}|${ctx.recipientId}|${p.clientMsgId}`, p.rev)) auth = 'invalid';
+    return { text, auth, agent: { author: 'ai' } };
 }

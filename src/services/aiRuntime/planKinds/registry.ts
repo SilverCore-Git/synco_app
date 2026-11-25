@@ -7,6 +7,9 @@
  */
 import type { ArgsSchema, JsonObject } from '@/assets/utils/aiActionPlan';
 
+/** Outil(s) de l'agent d'un kind : un nom, une liste (l'un suffit) ou fonction de l'action (`args`, `argsRefs`). */
+export type PlanKindTool = string | readonly string[] | ((args: JsonObject, argsRefs: JsonObject) => string);
+
 /** Outil client hors plan (`category: 'client'`) exécuté par l'appareil : `OrgAI.vue` l'appelle par son nom. */
 export interface PlanClientTool {
     name: string;
@@ -30,7 +33,7 @@ export interface PlanKindExecutor {
      * Outil de l'agent qui propose ce kind. Le kind n'est admis que si cet outil est disponible pour l'org
      * (au manifeste, politique non `deny`) : sans l'outil, `plan_kind`.
      */
-    tool?: string;
+    tool?: PlanKindTool;
     schema?: ArgsSchema;
     /** Champs exportables vers `argsRefs` (défaut : `id`). */
     exports?: readonly string[];
