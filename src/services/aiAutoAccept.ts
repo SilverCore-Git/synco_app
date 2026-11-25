@@ -5,6 +5,7 @@
  */
 import { computed, type ComputedRef } from 'vue';
 import useSettingsItem from '@/composables/useSettingsItem';
+import { planKindDescription } from '@/services/aiRuntime/planKinds';
 
 const KEY = /^[a-z][a-z0-9_.]{0,63}(:[a-z][a-z0-9_]{0,63})?$/;
 const MAX_ENTRIES = 100;
@@ -66,6 +67,8 @@ const LABELS: Record<string, { label: string; icon: string }> = {
 export function autoAcceptLabel(key: string): { label: string; icon: string } {
     const known = LABELS[key];
     if (known) return known;
+    const declared = planKindDescription(key);
+    if (declared?.title) return { label: declared.title, icon: declared.icon ?? 'bi-check2-circle' };
     const tool = toolOf(key);
     const text = (tool ?? key).replace(/[_.]/g, ' ');
     return { label: text.charAt(0).toUpperCase() + text.slice(1), icon: 'bi-check2-circle' };

@@ -11,6 +11,10 @@ export interface SummaryContext {
     userName(id: string): string | null;
     /** Partage d'agenda connu de l'app (ex. `respond_calendar_access`), ou null. */
     grant?(grantId: string): { who: string; level: string; direction: 'owner' | 'grantee' } | null;
+    /** Nom d'un espace de l'org ouverte, ou null. */
+    spaceName?(id: string): string | null;
+    /** Nom d'un salon de l'org ouverte, ou null. */
+    threadName?(id: string): string | null;
 }
 
 export type Summarizer = (args: Record<string, unknown>, ctx: SummaryContext) => string;

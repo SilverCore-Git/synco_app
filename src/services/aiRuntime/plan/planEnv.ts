@@ -83,6 +83,7 @@ export async function loadPlanEnv(
     const policy = registry.body && typeof registry.body === 'object' ? (registry.body as { policy?: { toolPolicy?: Record<string, unknown> } }).policy : undefined;
     // Sans règle explicite, `create_thread` se confirme (`ask`) : c'est le cas qui passe par le plan.
     const createThreadAsk = policy?.toolPolicy?.create_thread !== 'auto';
+    const toolPolicy = policy?.toolPolicy ?? {};
     const list = tools.filter((t): t is ToolSpecLike => !!t && typeof t === 'object' && typeof (t as ToolSpecLike).name === 'string');
     return {
         context: {
@@ -91,6 +92,8 @@ export async function loadPlanEnv(
             manifest: ToolManifest.fromJson(tools as JsonValue),
             mode: verified.mode,
             createThreadAsk,
+            // Outil au manifeste et non refusé pour l'org : condition d'admission des kinds du registre `planKinds/`.
+            availableTools: new Set(list.filter(t => toolPolicy[t.name] !== 'deny').map(t => t.name)),
         },
         flags: list.map(t => ({ name: t.name, sensitive: t.sensitive === true })),
         autoAcceptPolicy,

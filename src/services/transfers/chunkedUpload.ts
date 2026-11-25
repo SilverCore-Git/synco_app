@@ -52,7 +52,13 @@ export interface UploadContext {
 /** Ce qu'on envoie : un nouveau fichier, ou le nouveau contenu d'un fichier existant. */
 export type UploadTarget =
     | { kind: 'create'; context: UploadContext }
-    | { kind: 'replace'; fileId: string; keyContext: FileKeyContext };
+    | {
+        kind: 'replace'; fileId: string; keyContext: FileKeyContext;
+        /** `X-Synco-Plan` du remplacement (12 §8.5) : l'API enregistre `{ id, spaceId }` à la bascule du contenu. */
+        planHeader?: string;
+        /** Contenu lu par l'appelant : si le fichier a changé avant la finalisation, l'API refuse (409 file_changed). */
+        expectedBlobId?: string;
+    };
 
 /** Morceaux d'un même fichier envoyés en parallèle (dans la limite globale de partSlots). */
 const PARTS_PER_FILE = 4;
@@ -100,8 +106,8 @@ export async function runChunkedUpload(source: Blob, name: string, target: Uploa
     const upload = await CdnUpload.open({
         ...(target.kind === 'create'
             ? { create: createDestination(target.context, name) }
-            : { replaceFileId: target.fileId }),
-        planHeader: target.kind === 'create' ? target.context.planHeader : undefined,
+            : { replaceFileId: target.fileId, expectedBlobId: target.expectedBlobId }),
+        planHeader: target.kind === 'create' ? target.context.planHeader : target.planHeader,
         size: encryptedSizeForPlain(source.size, chunkSize),
         partSize: chunkSize + GCM_TAG_LENGTH,
         mimeType: uploadMimeType(name, source.type),
