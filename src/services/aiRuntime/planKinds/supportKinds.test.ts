@@ -11,7 +11,7 @@ const { planClientTool, planKindDescription, setPlanKindModules } = await import
 const { actionLabel, KIND_ICON, kindChip } = await import('../plan/planLabels');
 const { isSensitiveAction } = await import('../plan/planModel');
 const { DeviceNotSentError } = await import('../plan/deviceErrors');
-const { checkSupportKindArgs, toSupportView, boundSupportViews } = await import('../agentSupport');
+const { checkSupportKindArgs, toSupportView, boundSupportViews, supportPageRequest } = await import('../agentSupport');
 const mods = {
     'support.create': (await import('./support.create')).default,
     'support.reply': (await import('./support.reply')).default,
@@ -163,5 +163,13 @@ describe('lecture : vue des échanges', () => {
         expect(b.truncated).toBe(true);
         expect(b.messages.at(-1)!.id).toBe('m199');
         expect(JSON.stringify(b.messages).length).toBeLessThan(64 * 1024);
+    });
+});
+
+describe('lecture : sans rejoindre la salle du ticket', () => {
+    test('toujours support:load-more, jamais support:join (le socket partagé garde ses autres salles)', () => {
+        expect(supportPageRequest(TICKET)).toEqual({ event: 'support:load-more', payload: { ticketId: TICKET, channel: 'PUBLIC' } });
+        expect(supportPageRequest(TICKET, 'm9')).toEqual({ event: 'support:load-more', payload: { ticketId: TICKET, channel: 'PUBLIC', before: 'm9' } });
+        expect(supportPageRequest(TICKET).payload.channel).toBe('PUBLIC');
     });
 });

@@ -21,6 +21,7 @@ import { pinOrCheckKey } from '@/assets/utils/keyPinning';
 import { decryptMessages } from '@/assets/utils/decryptMessages';
 import { isWellFormedText } from '@/assets/utils/agentMessage';
 import { isValidId } from '@/assets/utils/runtimeCert';
+import { hasHiddenChars } from './supportText';
 import {
     generateTicketKey, sealTicketKey, setCachedTicketKey, signTicketKey, supportKeyContext, SUPPORT_KEY_VERSION,
 } from '@/assets/utils/supportCrypto';
@@ -39,8 +40,9 @@ export const SUPPORT_TEXT_MAX = 8000;
 export type SupportKind = 'support.create' | 'support.reply';
 
 const chars = (s: string): number => Array.from(s).length;
+/** Texte bien formé, SANS caractère invisible ni de contrôle (ce qui est lu sur la carte est ce qui part) : voir supportText.ts. */
 const text = (s: unknown, min: number, max: number): boolean =>
-    typeof s === 'string' && isWellFormedText(s) && chars(s) >= min && chars(s) <= max;
+    typeof s === 'string' && isWellFormedText(s) && !hasHiddenChars(s) && chars(s) >= min && chars(s) <= max;
 
 /**
  * `args` stricts du §4.2 : champ inconnu, type ou bornes hors limites → faux. `ticketId` peut manquer quand il vient
@@ -201,10 +203,17 @@ export function boundSupportViews(views: SupportMessageView[]): { messages: Supp
 }
 
 /**
- * `read_support_ticket` : un de MES tickets, titre et échanges publics déchiffrés ici. Première page : `support:join`
- * du canal PUBLIC (ses 20 derniers messages) ; avec `before` : `support:load-more`. Le canal interne n'est jamais
- * demandé. Limite connue : un `support:join` quitte les salles des autres tickets du socket (le temps réel d'un autre
- * ticket ouvert à l'écran reprend à sa réouverture).
+ * Requête de page du canal PUBLIC d'un ticket : TOUJOURS `support:load-more` (avec ou sans `before`), jamais
+ * `support:join`, qui ferait quitter au socket partagé les salles des autres tickets ouverts à l'écran.
+ */
+export function supportPageRequest(ticketId: string, before?: string): { event: 'support:load-more'; payload: { ticketId: string; channel: 'PUBLIC'; before?: string } } {
+    return { event: 'support:load-more', payload: { ticketId, channel: 'PUBLIC', ...(before ? { before } : {}) } };
+}
+
+/**
+ * `read_support_ticket` : un de MES tickets, titre et échanges publics déchiffrés ici. Pages de 20 par `support:load-more` du
+ * canal PUBLIC (sans `before` : la plus récente), sans rejoindre la salle du ticket : le temps réel des autres
+ * tickets ouverts à l'écran n'est pas touché. Le canal interne n'est jamais demandé.
  */
 export async function readSupportTicket(args: { ticketId: string; before?: string }) {
     const myId = me();
@@ -212,12 +221,8 @@ export async function readSupportTicket(args: { ticketId: string; before?: strin
     const ticket = await findOwnTicket(args.ticketId);
     const key = await publicKeyOf(ticket);
     const socket = await socketOrFail();
-    const page = await emitAck<{ messages?: SupportMessageDTO[]; hasMore?: boolean; error?: string }>(
-        socket,
-        args.before ? 'support:load-more' : 'support:join',
-        { ticketId: ticket.id, channel: 'PUBLIC', ...(args.before ? { before: args.before } : {}) },
-        'read',
-    );
+    const request = supportPageRequest(ticket.id, args.before);
+    const page = await emitAck<{ messages?: SupportMessageDTO[]; hasMore?: boolean; error?: string }>(socket, request.event, request.payload, 'read');
     if (!page?.messages) throw new DeviceHttpError(403);
     // Défense en profondeur : rien d'un autre canal ni d'un autre ticket, même si l'API en servait par erreur.
     const own = page.messages.filter(m => m.channel === 'PUBLIC' && m.ticketId === ticket.id);

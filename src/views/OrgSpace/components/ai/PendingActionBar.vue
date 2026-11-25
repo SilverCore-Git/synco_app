@@ -79,6 +79,14 @@
                     <span v-if="summary" class="text-(--text2) break-all"> — {{ summary }}</span>
                 </span>
             </div>
+            <!-- Envoi au support : sujet et texte INTÉGRAUX, blancs compris, avant l'accord (rien ne part sans être lu) -->
+            <div v-if="support" class="flex flex-col gap-2">
+                <div v-for="part in support.parts" :key="part.label" class="flex flex-col gap-1">
+                    <p class="text-[11px] font-semibold text-(--text2)">{{ part.label }}</p>
+                    <div class="max-h-60 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-black/20 border border-(--text)/10 px-3 py-2 text-sm text-(--text)">{{ part.text }}</div>
+                </div>
+                <p v-if="support.warning" class="text-xs font-semibold text-amber-600 dark:text-amber-400">{{ support.warning }}</p>
+            </div>
             <TransitionGroup name="list" tag="div" appear class="flex flex-wrap gap-2">
                 <button key="accept" style="transition-delay: 0ms" @click="$emit('accept')" class="primary px-4 py-2 rounded-xl text-sm font-medium">Accepter</button>
                 <button key="always" style="transition-delay: 40ms" @click="$emit('always-accept')" class="default px-4 py-2 rounded-xl text-sm font-medium">
@@ -102,6 +110,7 @@ import { openedOrg } from '@/assets/var';
 import { useCalendarAccess } from '@/composables/useCalendarAccess';
 import { summarizeTool, type SummaryContext } from '@/components/ai/summaries/summaryRegistry';
 import { summaryModules } from '@/components/ai/summaries/summaryModules';
+import { supportPreview } from '@/components/ai/summaries/supportPreview';
 import { orgResolver } from '@/services/aiRuntime/plan/planEnv';
 import { guardedText, guardReasonText, guardSegments, isWebGuardTool, type WebGuard } from '@/services/aiRuntime/conversation/webGuard';
 
@@ -168,6 +177,8 @@ const summary = computed(() => {
         default: return '';
     }
 });
+
+const support = computed(() => supportPreview(props.tool.name, args.value ?? {}));
 
 const isWeb = computed(() => isWebGuardTool(props.tool.name));
 const webSegments = computed(() => guardSegments(guardedText(props.tool.name, args.value) ?? '(texte absent)', props.guard?.spans ?? []));
