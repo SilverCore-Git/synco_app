@@ -38,6 +38,16 @@ export const formatReactions = (reactions: any[]): ReactionMap => {
 const normalizeReactions = (reactions: Message['reactions']) =>
     Array.isArray(reactions) ? formatReactions(reactions as any) : reactions;
 
+/**
+ * `agentMark` et `authState` sont posés UNIQUEMENT par le déchiffrement local ; un champ de même nom servi par le
+ * serveur est inventé (un serveur ferait sinon afficher « avec Synco AI » sur un message humain). Chaque branche de
+ * retour passe par ici : le champ servi est retiré, la valeur calculée (ou rien) est posée explicitement.
+ */
+const withoutServedMarks = <T extends Message>(msg: T): T => {
+    const { agentMark: _mark, authState: _state, ...rest } = msg;
+    return rest as T;
+};
+
 export const UNVERIFIED_SENDER_TEXT = "[⚠️ Expéditeur non vérifié — ce message n'est pas affiché.]";
 
 /**
@@ -62,32 +72,42 @@ const decryptContent = async (
     return { text: await decryptMessageWithContentKey(msg.content, vectorInit, key), authState: 'legacy' };
 };
 
+/**
+ * Vecteur du message : `iv`, ou à défaut `nonce` (ancien format). Le format `m3` ne se lit QUE dans `iv` : un `m3.` dans
+ * `nonce` (champ libre de l'expéditeur) n'est jamais interprété (il lèverait au déchiffrement, comme tout nonce invalide).
+ */
+const vectorInitOf = (msg: Message): string => {
+    if (msg.iv && msg.iv.trim() !== "") return msg.iv;
+    const nonce = msg.nonce ?? "";
+    return nonce.startsWith("m3.") ? "" : nonce;
+};
+
 const decryptSingleMessage = async (msg: Message | null | undefined, key: CryptoKey, replayed = false): Promise<Message | null> => {
 
     if (!msg) return null;
-    if (!msg.content || msg.content.trim() === "") return msg;
-    if (msg.isWebhook) return msg;
+    if (!msg.content || msg.content.trim() === "") return withoutServedMarks(msg);
+    if (msg.isWebhook) return withoutServedMarks(msg);
 
     try {
 
-        const vectorInit = msg.iv && msg.iv.trim() !== "" ? msg.iv : msg.nonce;
+        const vectorInit = vectorInitOf(msg);
 
         if (!vectorInit || vectorInit.trim() === "")
         {
             console.error('ProcesMessages : Erreur E2EE : Vecteur d\'initialisation manquant')
-            return { ...msg, content: undecryptableMessageText() };
+            return { ...withoutServedMarks(msg), content: undecryptableMessageText() };
         }
 
         const { text: clearText, authState, agentMark } = await decryptContent(msg, vectorInit, key, replayed);
 
         const formattedReactions = msg.reactions ? normalizeReactions(msg.reactions) : {};
 
-        return { ...msg, content: clearText, authState, reactions: formattedReactions, ...(agentMark ? { agentMark } : {}) };
+        return { ...withoutServedMarks(msg), content: clearText, authState, reactions: formattedReactions, ...(agentMark ? { agentMark } : {}) };
 
     }
     catch (cryptoErr) {
         console.error(`[E2EE] Échec du déchiffrement pour le message ${msg.id}:`, cryptoErr);
-        return { ...msg, content: undecryptableMessageText() };
+        return { ...withoutServedMarks(msg), content: undecryptableMessageText() };
     }
 
 };
@@ -101,7 +121,7 @@ const decryptSingleMessage = async (msg: Message | null | undefined, key: Crypto
  */
 export const decryptMessages = async (msgs: Message[], key: CryptoKey | null): Promise<Message[]> => {
 
-    if (!key) return msgs;
+    if (!key) return msgs.map(withoutServedMarks);
 
     // Messages qui répètent l'identifiant d'un message plus ancien : rejeux (FC7).
     const replayed = findReplayedMessages(msgs);
@@ -109,7 +129,7 @@ export const decryptMessages = async (msgs: Message[], key: CryptoKey | null): P
     const decryptedMessages = await Promise.all(msgs.map(async m => {
 
         let decryptedMain = await decryptSingleMessage(m, key, replayed.has(m.id));
-        if (!decryptedMain) return m;
+        if (!decryptedMain) return withoutServedMarks(m);
 
         if (decryptedMain.replyMessage)
         {
@@ -138,9 +158,10 @@ export const decryptMessages = async (msgs: Message[], key: CryptoKey | null): P
 
 /**
  * 12 §10.7, étape 8 : une même déclaration `(planId, n)` sur un AUTRE `clientMsgId` du salon (fenêtre chargée) → le
- * plus récent est `text_unverified` (`replayed`), affiché avec l'avertissement, jamais masqué.
+ * plus récent est `text_unverified` (`replayed`), affiché avec l'avertissement, jamais masqué. À relancer sur la liste
+ * entière à chaque insertion ou modification d'un message reçu en direct (ChatTimeline.vue), pas seulement au chargement.
  */
-const markReplayedDeclarations = (msgs: Message[]): void => {
+export const markReplayedDeclarations = (msgs: Message[]): void => {
     const candidates = msgs.flatMap(m => {
         const mark = m.agentMark;
         const cid = clientMsgIdOf(m.iv);
@@ -168,7 +189,7 @@ export const decryptEditedMessage = async (editedMsg: Message, key: CryptoKey | 
     if (editedMsg.content && editedMsg.content.trim() !== "" && key)
     {
         try {
-            const vectorInit = editedMsg.iv && editedMsg.iv.trim() !== "" ? editedMsg.iv : editedMsg.nonce;
+            const vectorInit = vectorInitOf(editedMsg);
             ({ text: decryptedContent, authState, agentMark } = await decryptContent(editedMsg, vectorInit, key));
         } catch (err) {
             decryptedContent = "🔒 Échec du déchiffrement lors de l'édition.";
