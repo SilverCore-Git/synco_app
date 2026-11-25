@@ -419,6 +419,10 @@ export async function verifyTextDeclaration(msg: ReaderMessage, td: string | nul
 /**
  * Étape 8 : une même `(planId, n)` déjà vue sur un AUTRE `clientMsgId` du salon (fenêtre chargée) ; le plus
  * récent est `replayed`. Rend les identifiants des messages rejoués.
+ *
+ * « Plus récent » = `createdAt` SERVI par le serveur : un serveur peut donc choisir laquelle des deux copies est
+ * marquée rejouée. C'est sans conséquence de sécurité (les DEUX copies restent affichées, jamais masquées, la marquée
+ * porte l'avertissement « texte non confirmé ») ; ne pas en faire une preuve d'antériorité.
  */
 export function findReplayedDeclarations(msgs: ReadonlyArray<{ id: string; clientMsgId: string; createdAt: string | Date; action?: { planId: string; n: number } }>): Set<string> {
     const out = new Set<string>();
