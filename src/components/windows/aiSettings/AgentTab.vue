@@ -260,7 +260,7 @@ const webError = ref('');
 const webToggleBlocked = computed(() => busy.value || !webFeature.value || (!webFeature.value.allowed && !webFeature.value.enabled));
 const webHint = computed(() => {
     const f = webFeature.value;
-    if (f?.enabled) return `Activé · recherches envoyées à ${webProviderLabel(f.provider)}. Une recherche ou une adresse douteuse vous est montrée avant l'envoi.`;
+    if (f?.enabled) return `Activé · recherches envoyées à ${webProviderLabel(f.provider)}. Ce qui semble venir de Synco vous est montré avant l'envoi.`;
     if (f?.allowed && !onRuntime.value) return "Ne sert que lorsque l'agent tourne sur le runtime de l'organisation.";
     return "Désactivé · l'agent ne sort jamais de Synco.";
 });
