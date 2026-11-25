@@ -24,17 +24,15 @@ afterEach(() => setPlanKindModules(undefined));
 const reference = (pk.validationCases[0] as unknown as { plan: { actions: JsonObject[] } }).plan.actions;
 const ctx = (patch: Partial<PlanContext> = {}): PlanContext => ({
     sessionId: 's1', maxLifetimeSecs: 3600, manifest: new ToolManifest(), mode: 'ask', createThreadAsk: true,
-    availableTools: new Set(Object.values(TOOL)), ...patch,
+    availableTools: new Set([...Object.values(TOOL), 'forward_message']), ...patch,
 });
 const plan = (...actions: JsonObject[]): JsonObject => ({
     v: 1, planId: 'p1', sessionId: 's1', toolCallId: 't1', createdAt: 1000, expiresAt: 2000, summary: 'x',
     actions: actions.map((a, i) => ({ n: i + 1, ...a })),
 });
-/** L'action de référence sans les listes (`mentionUserIds`, `fileIds`) que `ArgsSchema` ne sait pas exprimer. */
 const scalar = (kind: string): JsonObject => {
     const a = reference.find(x => x.kind === kind)!;
-    const { mentionUserIds: _m, fileIds: _f, ...args } = a.args as JsonObject;
-    return { kind, args };
+    return { kind, args: a.args as JsonObject };
 };
 
 describe('kinds de message dans le registre planKinds (contrat L15g)', () => {
@@ -42,14 +40,14 @@ describe('kinds de message dans le registre planKinds (contrat L15g)', () => {
         test(`${kind} : exécutant complet (schéma, exports, outil, libellés)`, () => {
             expect(isPlanKindExecutor(m)).toBe(true);
             expect(m.kind).toBe(kind);
-            expect(m.tool).toBe(TOOL[kind as keyof typeof TOOL]);
+            expect(typeof m.tool === 'function' ? m.tool({}, {}) : m.tool).toBe(TOOL[kind as keyof typeof TOOL]);
             expect(m.schema).toBeInstanceOf(Map);
             expect(m.exports).toEqual([...MESSAGE_KIND_EXPORTS[kind as keyof typeof MESSAGE_KIND_EXPORTS]]);
             expect(typeof m.label!(scalar(kind).args as JsonObject)).toBe('string');
             expect(m.chip!(2)).toMatch(/^2 /);
             expect(m.icon).toMatch(/^bi-/);
             expect(m.title).toBeTruthy();
-            expect(m.clientTools!.some(t => t.name === m.tool)).toBe(true);
+            expect(m.clientTools!.some(t => t.name === TOOL[kind as keyof typeof TOOL])).toBe(true);
         });
     }
 
@@ -87,7 +85,7 @@ describe('kinds de message dans le registre planKinds (contrat L15g)', () => {
 });
 
 describe('validatePlan : plan avec message.send / dm.send', () => {
-    test('les quatre kinds sont acceptés (action de référence du vecteur, sans listes)', () => {
+    test('les quatre kinds sont acceptés (actions de référence du vecteur, mentionUserIds compris)', () => {
         inject();
         for (const kind of Object.keys(mods)) expect(validatePlan(plan(scalar(kind)), ctx())).toBeDefined();
         expect(validatePlan(plan(scalar('message.send'), scalar('dm.send')), ctx()).actions).toHaveLength(2);
@@ -115,6 +113,40 @@ describe('validatePlan : plan avec message.send / dm.send', () => {
         expect(() => validatePlan(plan({ kind: 'message.send', args: { ...base, text: 'x'.repeat(8001) } }), ctx())).toThrow(PlanInvalidError);
         expect(() => validatePlan(plan({ kind: 'dm.send', args: { peerId: 'cm3userexample00000000002', text: '' } }), ctx())).toThrow(PlanInvalidError);
         expect(() => validatePlan(plan({ kind: 'message.edit', args: { text: 'x' } }), ctx())).toThrow(PlanInvalidError);
+    });
+
+    test('listes d’identifiants : acceptées dans les bornes, refusées au-delà ou mal formées', () => {
+        inject();
+        const u = (n: number) => Array.from({ length: n }, (_, i) => `cm3userexample${String(i).padStart(10, '0')}`);
+        const send = (extra: JsonObject) => plan({ kind: 'message.send', args: { threadId: 'cm3threadexample000000001', text: 'x', ...extra } });
+        expect(validatePlan(send({ mentionUserIds: u(10), fileIds: u(10) }), ctx())).toBeDefined();
+        expect(validatePlan(send({ mentionUserIds: [] }), ctx())).toBeDefined();
+        expect(() => validatePlan(send({ mentionUserIds: u(11) }), ctx())).toThrow(PlanInvalidError);
+        expect(() => validatePlan(send({ fileIds: u(11) }), ctx())).toThrow(PlanInvalidError);
+        expect(() => validatePlan(send({ mentionUserIds: [u(1)[0], u(1)[0]] }), ctx())).toThrow(PlanInvalidError);
+        expect(() => validatePlan(send({ mentionUserIds: ['a b'] }), ctx())).toThrow(PlanInvalidError);
+        expect(() => validatePlan(send({ mentionUserIds: 'cm3userexample00000000002' }), ctx())).toThrow(PlanInvalidError);
+        expect(() => validatePlan(send({ mentionUserIds: [3] }), ctx())).toThrow(PlanInvalidError);
+        expect(validatePlan(plan({ kind: 'dm.send', args: { peerId: 'cm3userexample00000000002', text: 'x', fileIds: u(10) } }), ctx())).toBeDefined();
+        expect(() => validatePlan(plan({ kind: 'dm.send', args: { peerId: 'cm3userexample00000000002', text: 'x', fileIds: u(11) } }), ctx())).toThrow(PlanInvalidError);
+    });
+
+    test('lien kind → outil : un transfert exige forward_message, un message ordinaire send_message', () => {
+        inject();
+        const fwd = plan({ kind: 'message.send', args: { threadId: 'cm3threadexample000000001', text: '', forwardOf: 'cm3messageexample00000001' } });
+        const plain = plan(scalar('message.send'));
+        const only = (t: string) => ctx({ availableTools: new Set([t]) });
+        expect(validatePlan(fwd, only('forward_message'))).toBeDefined();
+        expect(() => validatePlan(fwd, only('send_message'))).toThrow(PlanInvalidError);
+        expect(validatePlan(plain, only('send_message'))).toBeDefined();
+        expect(() => validatePlan(plain, only('forward_message'))).toThrow(PlanInvalidError);
+        // forwardOf fourni par argsRefs : même règle.
+        const viaRef = plan(
+            { kind: 'message.send', args: { threadId: 'cm3threadexample000000001', text: 'a' } },
+            { kind: 'message.send', args: { threadId: 'cm3threadexample000000001', text: '' }, argsRefs: { forwardOf: '$1.id' }, after: [1] },
+        );
+        expect(() => validatePlan(viaRef, only('send_message'))).toThrow(PlanInvalidError);
+        expect(validatePlan(viaRef, ctx({ availableTools: new Set(['send_message', 'forward_message']) }))).toBeDefined();
     });
 
     test('un transfert (commentaire vide) et un message d’un salon donné par argsRefs sont admis', () => {

@@ -17,6 +17,8 @@ import { RuntimeFormatError, isValidId, sha256, toHex } from './runtimeCert';
 import type { MandateMode } from './runtimeDelegation';
 import { TEXT_FILE_FORMATS } from './textFileFormats';
 import { planKindDescription } from '@/services/aiRuntime/planKinds';
+import type { PlanKindTool } from '@/services/aiRuntime/planKinds/registry';
+import { isMessageKind, messageKindExecutor } from './agentMessagePlan';
 
 const enc = new TextEncoder();
 
@@ -408,13 +410,15 @@ export async function planServerDigests(plan: JsonObject): Promise<Map<number, s
     return out;
 }
 
-const isExportField = (field: string): boolean => field === 'id' || field === 'spaceId';
+/** Champs exportables d'une sortie (12 §4, §4.2). */
+export type ExportField = 'id' | 'spaceId' | 'threadId' | 'peerId';
+const isExportField = (field: string): field is ExportField => field === 'id' || field === 'spaceId' || field === 'threadId' || field === 'peerId';
 
 /** `"$<m>.<champ>"` : `m ≥ 1` sans zéro de tête, champ exporté connu ; `null` sinon. */
-export function parseArgRef(text: string): { m: number; field: 'id' | 'spaceId' } | null {
-    const match = /^\$([1-9][0-9]{0,2})\.(id|spaceId)$/.exec(text);
+export function parseArgRef(text: string): { m: number; field: ExportField } | null {
+    const match = /^\$([1-9][0-9]{0,2})\.(id|spaceId|threadId|peerId)$/.exec(text);
     if (!match) return null;
-    return { m: Number(match[1]), field: match[2] as 'id' | 'spaceId' };
+    return { m: Number(match[1]), field: match[2] as ExportField };
 }
 
 export interface ServerCall {
@@ -482,7 +486,8 @@ export class PlanInvalidError extends RuntimeFormatError {
 
 type ParamType = 'string' | 'integer' | 'boolean';
 export interface ParamSpec {
-    type: ParamType;
+    /** `ids` : liste d'identifiants distincts (`min` / `max` bornent la TAILLE de la liste, chaque élément est un id). */
+    type: ParamType | 'ids';
     required: boolean;
     min?: number;
     max?: number;
@@ -580,6 +585,11 @@ const KIND_SCHEMAS: Record<Exclude<HistoricKind, 'server.call'>, ArgsSchema> = {
 const TEXT_EXTENSIONS = new Set(TEXT_FILE_FORMATS.map(f => f.ext));
 
 function checkArg(spec: ParamSpec, value: JsonValue): boolean {
+    if (spec.type === 'ids') {
+        return Array.isArray(value)
+            && (spec.min === undefined || value.length >= spec.min) && (spec.max === undefined || value.length <= spec.max)
+            && value.every(x => typeof x === 'string' && isValidId(x)) && new Set(value).size === value.length;
+    }
     if (spec.type === 'boolean') return typeof value === 'boolean';
     if (spec.type === 'integer') {
         if (typeof value !== 'number' || !Number.isSafeInteger(value)) return false;
@@ -608,6 +618,12 @@ export interface PlanContext {
      * `planKinds/` avec `tool` n'est admis que si cet outil y figure ; absent = aucun outil proposable.
      */
     availableTools?: ReadonlySet<string>;
+    /**
+     * `message.edit` (12 §4.2) : identifiants de messages que l'appareil sait écrits par l'agent autonome (`m3` d'auteur
+     * `rt1:` d'une délégation du MÊME utilisateur vers ce runtime). Seuls ceux-là peuvent être édités par le runtime ;
+     * absent = aucun (l'édition reste à l'appareil).
+     */
+    runtimeAuthoredMessages?: ReadonlySet<string>;
 }
 
 /** Action du graphe : ce que l'API connaît sans le contenu (§8.1, §12.2). */
@@ -625,6 +641,19 @@ const ACTION_FIELDS = ['n', 'kind', 'tool', 'args', 'group', 'after', 'argsRefs'
  * graphe ; lève `PlanInvalidError` (`code` = `plan_invalid`, `detail`). La règle 7 (annuaire local)
  * reste à l'appelant ; la règle 8 est `checkServedGraph`.
  */
+/**
+ * Lien kind → outil : `tool` est un nom, une liste (l'un d'eux suffit) ou une fonction de l'action (`message.send` :
+ * `forward_message` si `forwardOf`, sinon `send_message`). Sans `tool`, aucune condition.
+ */
+function declaredToolAvailable(tool: PlanKindTool | undefined, action: JsonObject, ctx: PlanContext): boolean {
+    if (tool === undefined) return true;
+    const available = ctx.availableTools;
+    if (!available) return false;
+    if (typeof tool === 'string') return available.has(tool);
+    if (typeof tool === 'function') return available.has(tool(isObject(action.args) ? action.args : {}, isObject(action.argsRefs) ? action.argsRefs : {}));
+    return tool.some(t => available.has(t));
+}
+
 export function validatePlan(plan: JsonValue, ctx: PlanContext): PlanGraph {
     const fail = (detail: PlanInvalidDetail) => new PlanInvalidError(detail);
     if (!isObject(plan)) throw fail('plan_header');
@@ -681,7 +710,7 @@ export function validatePlan(plan: JsonValue, ctx: PlanContext): PlanGraph {
         const kind = kindText as ActionKind;
         // Kind déclaré par le registre : lié à son outil, qui doit être proposable à l'org (pas `deny`).
         const declared = ACTION_KINDS.includes(kind) ? undefined : planKindDescription(kind);
-        if (declared?.tool && !ctx.availableTools?.has(declared.tool)) throw fail('plan_kind');
+        if (declared && !declaredToolAvailable(declared.tool, action, ctx)) throw fail('plan_kind');
         let schema: ArgsSchema | undefined;
         if (kind === 'server.call') {
             const tool = str(action, 'tool');
@@ -732,7 +761,14 @@ export function validatePlan(plan: JsonValue, ctx: PlanContext): PlanGraph {
             if (spec.required && !has(args, field) && !(refs && has(refs, field))) throw fail('plan_args');
         }
 
-        const executor = actionExecutor(kind, ctx.mode, ctx.createThreadAsk);
+        const executor = isMessageKind(kind)
+            ? messageKindExecutor(action, {
+                mode: ctx.mode,
+                targetAuthorSameUserRuntime: typeof args.messageId === 'string' && ctx.runtimeAuthoredMessages?.has(args.messageId) === true,
+                refExecutors: Object.fromEntries(graph.map(g => [String(g.n), g.executor])),
+                refKinds: Object.fromEntries(kinds.map((k, j) => [String(j + 1), k])),
+            })
+            : actionExecutor(kind, ctx.mode, ctx.createThreadAsk);
         if (!executor) throw fail('plan_kind');
         kinds.push(kind);
         graph.push({ n, executor, after });

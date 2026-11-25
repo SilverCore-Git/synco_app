@@ -1,6 +1,6 @@
 /**
  * Kind `dm.send` (12 §4.2) : `send_dm`, appareil seulement (EX-13), nonce `d3` d'auteur `ai`. Déclare aussi l'outil
- * client `read_dm`. Même écart de schéma que `message.send` pour `fileIds` (pas de type liste dans `ArgsSchema`).
+ * client `read_dm`.
  */
 import type { ArgsSchema, JsonObject } from '@/assets/utils/aiActionPlan';
 import { sendAgentDm } from '../agentMessaging';
@@ -11,9 +11,10 @@ import type { PlanKindExecutor } from './registry';
 const schema: ArgsSchema = new Map([
     ['peerId', { type: 'string', required: true, id: true }],
     ['text', { type: 'string', required: true, min: 1, max: 8000 }],
+    ['fileIds', { type: 'ids', required: false, max: 10 }],
 ]);
 
-const toArgs = (a: JsonObject) => ({ peerId: need(str(a.peerId)), text: need(str(a.text)), fileIds: ids(a.fileIds) });
+const toArgs = (a: JsonObject, orgId: string) => ({ orgId, peerId: need(str(a.peerId)), text: need(str(a.text)), fileIds: ids(a.fileIds) });
 
 const executor: PlanKindExecutor = {
     kind: 'dm.send',
@@ -27,7 +28,7 @@ const executor: PlanKindExecutor = {
     async execute(args, planHeader, orgId) {
         assertOrgOpen(orgId);
         assertKindArgs('dm.send', args);
-        return sendAgentDm(toArgs(args), planHeader);
+        return sendAgentDm(toArgs(args, orgId), planHeader);
     },
     clientTools: [
         {
@@ -35,7 +36,7 @@ const executor: PlanKindExecutor = {
             async run(args, { orgId }) {
                 assertOrgOpen(orgId);
                 assertKindArgs('dm.send', args as JsonObject);
-                return sendAgentDm(toArgs(args as JsonObject));
+                return sendAgentDm(toArgs(args as JsonObject, orgId));
             },
         },
         ...dmReadTools,
