@@ -21,6 +21,7 @@ import { buildForwardToken, extractForwardedPayload } from '@/composables/useFor
 import useWSocket from '@/composables/useWSocket';
 import type { Message } from '@/types/types';
 import { DeviceHttpError, DeviceNotSentError } from './plan/deviceErrors';
+import { assertPeerInOrg, assertThreadInOrg } from './orgGuard';
 
 /** Échec métier d'une action de message (codes de 12 §4.2) : `failed` avec ce code. */
 export class AgentMessageError extends DeviceNotSentError {
@@ -81,7 +82,8 @@ const me = (): string => {
 
 const plan = (planHeader?: string) => (planHeader ? { plan: planHeader } : {});
 
-export interface AgentSendArgs { threadId: string; text: string; replyTo?: string; mentionUserIds?: string[]; fileIds?: string[]; forwardOf?: string }
+/** `orgId` : l'org de la CONVERSATION ; tout salon ou interlocuteur est recoupé avec elle (orgGuard.ts) avant tout envoi. */
+export interface AgentSendArgs { orgId: string; threadId: string; text: string; replyTo?: string; mentionUserIds?: string[]; fileIds?: string[]; forwardOf?: string }
 
 /**
  * `message.send` d'appareil : socket `send-message` avec un `iv` `m3` d'auteur `ai`, références extraites du texte
@@ -89,8 +91,9 @@ export interface AgentSendArgs { threadId: string; text: string; replyTo?: strin
  * messageTransferService (le serveur revalide l'origine pour l'expéditeur). Rend `{ id, threadId }`.
  */
 export async function sendAgentThreadMessage(args: AgentSendArgs, planHeader?: string): Promise<{ id: string; threadId: string }> {
+    assertThreadInOrg(args.orgId, args.threadId);
     const senderId = me();
-    const text = args.forwardOf ? await forwardContent(args.forwardOf, args.text) : agentMessageText({ text: args.text, mentionUserIds: args.mentionUserIds });
+    const text = args.forwardOf ? await forwardContent(args.forwardOf, args.text, args.orgId) : agentMessageText({ text: args.text, mentionUserIds: args.mentionUserIds });
     if (Array.from(text).length > 10000) throw new AgentMessageError('message_too_long');
     const key = await resolveThreadKey(args.threadId);
     const { ciphertext, iv } = await encryptThreadMessageV3(text, key, { threadId: args.threadId, senderId });
@@ -114,8 +117,9 @@ export async function sendAgentThreadMessage(args: AgentSendArgs, planHeader?: s
  * Contenu d'un transfert (comme le geste de l'app, ThreadMessage.vue::confirmForward) : l'original est déchiffré sur
  * l'appareil puis rechiffré pour la destination ; transférer un transfert repart de SON origine.
  */
-async function forwardContent(forwardOf: string, comment: string): Promise<string> {
+async function forwardContent(forwardOf: string, comment: string, orgId: string): Promise<string> {
     const original = await fetchThreadMessage(forwardOf);
+    assertThreadInOrg(orgId, original.threadId);
     const [clear] = await decryptMessages([original], await resolveThreadKey(original.threadId));
     if (!clear || clear.authState === 'invalid') throw new DeviceNotSentError('forward_unreadable');
     const payload = extractForwardedPayload(clear.content)?.payload ?? {
@@ -139,9 +143,10 @@ async function fetchThreadMessage(messageId: string): Promise<Message> {
  * `message.edit` d'appareil : seul un message de l'utilisateur (`not_own_message` sinon) ; même `clientMsgId`,
  * `rev` + 1, `iv` `m3` d'auteur `ai` (un `m2` modifié par l'agent devient `m3`). Rend `{ id, threadId }`.
  */
-export async function editAgentThreadMessage(args: { messageId: string; text: string }, planHeader?: string): Promise<{ id: string; threadId: string }> {
+export async function editAgentThreadMessage(args: { orgId: string; messageId: string; text: string }, planHeader?: string): Promise<{ id: string; threadId: string }> {
     const senderId = me();
     const original = await fetchThreadMessage(args.messageId);
+    assertThreadInOrg(args.orgId, original.threadId);
     if (original.senderId !== senderId || original.isWebhook) throw new AgentMessageError('not_own_message');
     const text = agentMessageText({ text: args.text });
     const key = await resolveThreadKey(original.threadId);
@@ -165,7 +170,8 @@ async function trustedPeerKey(peerId: string): Promise<string> {
 }
 
 /** `dm.send` d'appareil : socket `dm:send-message`, nonce `d3` d'auteur `ai`. Rend `{ id, peerId }`. */
-export async function sendAgentDm(args: { peerId: string; text: string; fileIds?: string[] }, planHeader?: string): Promise<{ id: string; peerId: string }> {
+export async function sendAgentDm(args: { orgId: string; peerId: string; text: string; fileIds?: string[] }, planHeader?: string): Promise<{ id: string; peerId: string }> {
+    assertPeerInOrg(args.orgId, args.peerId);
     const senderId = me();
     if (!E2EEUnloked.value) throw new DeviceNotSentError('e2ee_locked');
     const text = agentMessageText({ text: args.text });
@@ -190,13 +196,14 @@ export async function sendAgentDm(args: { peerId: string; text: string; fileIds?
 interface ServedDm { id: string; senderId: string; recipientId: string; content: string; nonce: string; encryptedAesKey: string | null; selfEncryptedAesKey: string | null; createdAt: string; replyToId: string | null; isE2EE: boolean }
 
 /** `dm.edit` d'appareil : seul SON message (`not_own_message`), même `clientMsgId`, `rev` + 1, `d3`. Rend `{ id }`. */
-export async function editAgentDm(args: { dmMessageId: string; text: string }, planHeader?: string): Promise<{ id: string }> {
+export async function editAgentDm(args: { orgId: string; dmMessageId: string; text: string }, planHeader?: string): Promise<{ id: string }> {
     const senderId = me();
     const socket = await socketOrFail();
     const got = await emitAck<{ message?: ServedDm; error?: string }>(socket, 'dm:get-message', { id: args.dmMessageId });
     const original = got?.message;
     if (!original) throw new DeviceHttpError(404);
     if (original.senderId !== senderId) throw new AgentMessageError('not_own_message');
+    assertPeerInOrg(args.orgId, original.recipientId);
     const text = agentMessageText({ text: args.text });
     const peerKey = await trustedPeerKey(original.recipientId);
     const cid = dmClientMsgIdOf(original.nonce) ?? crypto.randomUUID();
@@ -267,7 +274,8 @@ export function boundReadViews(views: ReadMessageView[]): { messages: ReadMessag
 const memberName = (id: string): string | null => openedOrg.value?.members?.find(m => m.userId === id)?.user?.name ?? null;
 
 /** `read_thread_messages` : les `limit` derniers (100 au plus), filtrés par `before` / `after` dans la fenêtre lue. */
-export async function readThreadMessages(args: { threadId: string; before?: string; after?: string; limit?: number }) {
+export async function readThreadMessages(args: { orgId: string; threadId: string; before?: string; after?: string; limit?: number }) {
+    assertThreadInOrg(args.orgId, args.threadId);
     const limit = Math.min(Math.max(args.limit ?? 50, 1), 100);
     const res = await sfetch(`/api/messages/threads/${encodeURIComponent(args.threadId)}?limit=100`);
     if (!res.ok) throw new DeviceHttpError(res.status);
@@ -282,11 +290,12 @@ export async function readThreadMessages(args: { threadId: string; before?: stri
 }
 
 /** `get_message` : le message et ses réponses dans la fenêtre récente du salon. */
-export async function getThreadMessage(args: { messageId: string }) {
+export async function getThreadMessage(args: { orgId: string; messageId: string }) {
     const original = await fetchThreadMessage(args.messageId);
+    assertThreadInOrg(args.orgId, original.threadId);
     const key = await resolveThreadKey(original.threadId);
     const [decrypted] = await decryptMessages([original], key);
-    const recent = await readThreadMessages({ threadId: original.threadId, limit: 100 });
+    const recent = await readThreadMessages({ orgId: args.orgId, threadId: original.threadId, limit: 100 });
     return {
         message: toReadView(decrypted ?? original, memberName),
         replies: recent.messages.filter(m => m.replyToId === args.messageId).slice(0, 50),
@@ -294,7 +303,8 @@ export async function getThreadMessage(args: { messageId: string }) {
 }
 
 /** `read_dm` (appareil seulement, EX-13) : page d'une conversation privée, sans changer de salle. */
-export async function readDm(args: { peerId: string; before?: string; limit?: number }) {
+export async function readDm(args: { orgId: string; peerId: string; before?: string; limit?: number }) {
+    assertPeerInOrg(args.orgId, args.peerId);
     const myId = me();
     if (!privateKey.value) throw new DeviceNotSentError('e2ee_locked');
     const socket = await socketOrFail();

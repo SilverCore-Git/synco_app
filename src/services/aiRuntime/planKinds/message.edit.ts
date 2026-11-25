@@ -9,7 +9,7 @@ const schema: ArgsSchema = new Map([
     ['text', { type: 'string', required: true, min: 1, max: 8000 }],
 ]);
 
-const toArgs = (a: JsonObject) => ({ messageId: need(str(a.messageId)), text: need(str(a.text)) });
+const toArgs = (a: JsonObject, orgId: string) => ({ orgId, messageId: need(str(a.messageId)), text: need(str(a.text)) });
 
 const executor: PlanKindExecutor = {
     kind: 'message.edit',
@@ -23,14 +23,14 @@ const executor: PlanKindExecutor = {
     async execute(args, planHeader, orgId) {
         assertOrgOpen(orgId);
         assertKindArgs('message.edit', args);
-        return editAgentThreadMessage(toArgs(args), planHeader);
+        return editAgentThreadMessage(toArgs(args, orgId), planHeader);
     },
     clientTools: [{
         name: 'edit_message', label: "Modification d'un message", icon: 'bi-pencil-square',
         async run(args, { orgId }) {
             assertOrgOpen(orgId);
             assertKindArgs('message.edit', args as JsonObject);
-            return editAgentThreadMessage(toArgs(args as JsonObject));
+            return editAgentThreadMessage(toArgs(args as JsonObject, orgId));
         },
     }],
 };

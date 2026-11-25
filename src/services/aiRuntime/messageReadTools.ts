@@ -17,14 +17,14 @@ export const threadReadTools: readonly PlanClientTool[] = [
         async run(args, { orgId }) {
             assertOrgOpen(orgId);
             const a = args as JsonObject;
-            return readThreadMessages({ threadId: need(str(a.threadId)), before: str(a.before), after: str(a.after), limit: limit(a.limit) });
+            return readThreadMessages({ orgId, threadId: need(str(a.threadId)), before: str(a.before), after: str(a.after), limit: limit(a.limit) });
         },
     },
     {
         name: 'get_message', label: "Lecture d'un message", icon: 'bi-chat-left-quote',
         async run(args, { orgId }) {
             assertOrgOpen(orgId);
-            return getThreadMessage({ messageId: need(str((args as JsonObject).messageId)) });
+            return getThreadMessage({ orgId, messageId: need(str((args as JsonObject).messageId)) });
         },
     },
 ];
@@ -35,7 +35,7 @@ export const dmReadTools: readonly PlanClientTool[] = [
         async run(args, { orgId }) {
             assertOrgOpen(orgId);
             const a = args as JsonObject;
-            return readDm({ peerId: need(str(a.peerId)), before: str(a.before), limit: limit(a.limit) });
+            return readDm({ orgId, peerId: need(str(a.peerId)), before: str(a.before), limit: limit(a.limit) });
         },
     },
 ];
