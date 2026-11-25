@@ -18,7 +18,7 @@
         <template v-else>
             <FeaturePolicyCard
                 v-for="p in policies" :key="p.feature" :ref="el => setCardRef(p.feature, el)"
-                :summary="p" :api="deps.api" :org-id="orgId" @state="onState" />
+                :summary="p" :api="deps.api" :org-id="orgId" :note="p.feature === 'web_access' ? webNote : undefined" @state="onState" />
 
             <p class="text-xs text-(--text2) flex items-center gap-2">
                 <i class="bi bi-journal-text"></i>
@@ -70,8 +70,8 @@ import { useToast } from '@/composables/useToast';
 import Popup from '@/components/Popup.vue';
 import { runtimeDeps } from '@/services/aiRuntimeUi';
 import {
-    listPolicies, listPolicyEvents,
-    type PolicyAnnouncement, type PolicyEvent, type PolicyFeature, type PolicySummary,
+    fetchMyFeatures, listPolicies, listPolicyEvents, webProviderLabel,
+    type PolicyAnnouncement, type WebProvider, type PolicyEvent, type PolicyFeature, type PolicySummary,
 } from '@/services/aiFeaturePolicies';
 import FeaturePolicyCard from './components/FeaturePolicyCard.vue';
 import { personOf } from './components/policyMembers';
@@ -80,8 +80,19 @@ const toast = useToast();
 const deps = runtimeDeps();
 const orgId = computed(() => openedOrg.value?.id ?? '');
 
-const FEATURES: PolicyFeature[] = ['autonomous_mode', 'runtime_mode', 'tool_auto_accept'];
-const LABELS: Record<PolicyFeature, string> = { autonomous_mode: 'Mode autonome', runtime_mode: 'Mode runtime', tool_auto_accept: 'Toujours accepter' };
+const FEATURES: PolicyFeature[] = ['autonomous_mode', 'runtime_mode', 'tool_auto_accept', 'web_access'];
+const LABELS: Record<PolicyFeature, string> = { autonomous_mode: 'Mode autonome', runtime_mode: 'Mode runtime', tool_auto_accept: 'Toujours accepter', web_access: 'Accès web' };
+
+/**
+ * Service de recherche déclaré par le runtime (`GET /me`, champ `provider`) : l'ouvrir revient à l'accepter comme
+ * sous-traitant (12 §11.3, catalogue L14 §8.9). Le choix du service se fait dans la configuration du runtime.
+ */
+const webProvider = ref<WebProvider | null | undefined>(undefined);
+const webNote = computed(() => {
+    if (webProvider.value === undefined) return undefined;
+    if (webProvider.value === null) return "Votre runtime n'a déclaré aucun service de recherche : tant qu'il n'en a pas, l'agent ne peut pas chercher sur internet, même autorisé.";
+    return `Les recherches partent chez ${webProviderLabel(webProvider.value)}, choisi dans la configuration de votre runtime. Ouvrir l'accès web revient à l'accepter comme sous-traitant de votre organisation (son contrat de traitement des données est à signer par vous).`;
+});
 
 const policies = ref<PolicySummary[]>([]);
 const loading = ref(true);
@@ -94,6 +105,10 @@ const load = async () => {
     try {
         const all = await listPolicies(deps.api, orgId.value);
         policies.value = FEATURES.flatMap(f => all.filter(p => p.feature === f));
+        // Lecture du service sans bloquer les cartes : en cas d'échec, pas de précision affichée.
+        void fetchMyFeatures(deps.api, orgId.value)
+            .then(f => { webProvider.value = f.find(x => x.feature === 'web_access')?.provider ?? null; })
+            .catch(() => { webProvider.value = undefined; });
     } catch {
         loadError.value = true;
     } finally {
@@ -183,6 +198,8 @@ const describeEvent = (e: PolicyEvent): string => {
             return `${actor} a activé la fonctionnalité pour lui-même.`;
         case 'opt_out':
             return `${actor} a désactivé la fonctionnalité pour lui-même.`;
+        case 'revoked':
+            return `${e.userId ? personOf(e.userId).name : 'Une personne'} a perdu la fonctionnalité (retrait par ${actor}).`;
         default:
             return `${actor} : ${e.type.replace(/_/g, ' ')}.`;
     }

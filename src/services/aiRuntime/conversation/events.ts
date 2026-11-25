@@ -44,7 +44,12 @@ export type AgentStreamEvent =
     | { type: 'thinking'; delta: string }
     | { type: 'usage'; messageId?: string; promptTokens?: number; completionTokens?: number; totalTokens?: number; reasoningTokens?: number }
     | { type: 'tool_call_pending'; toolCallId: string; name: string; args: unknown }
-    | { type: 'tool_call_client_required'; toolCallId: string; name: string; args: unknown; mutating: boolean; interactive: boolean }
+    /**
+     * `awaiting` : la source attend une décision de l'utilisateur pour cet appel (runtime : statut `pending`,
+     * la conversation est `awaiting_confirmation`), quels que soient `mutating` et `interactive` — ex. un
+     * `web_search` retenu par la garde de fuite (10 §4.4).
+     */
+    | { type: 'tool_call_client_required'; toolCallId: string; name: string; args: unknown; mutating: boolean; interactive: boolean; awaiting?: boolean }
     | { type: 'tool_call_result'; toolCallId: string; name: string; result: unknown; args?: unknown }
     | { type: 'status'; status: ConversationStatus }
     | { type: 'artifact'; messageId: string; toolCallId: string; artifactId: string }
@@ -87,7 +92,9 @@ export function toAgentEvent(ev: RuntimeEvent): AgentStreamEvent | null {
         case 'tool_call':
             if (ev.status === 'pending') {
                 return ev.category === 'client' || ev.interactive
-                    ? { type: 'tool_call_client_required', toolCallId: ev.toolCallId, name: ev.name, args: ev.args, mutating: ev.mutating, interactive: ev.interactive }
+                    // Le runtime n'émet `pending` que pour un appel qui attend l'utilisateur (un appel automatique
+                    // arrive `executing`) : on se fie à ce statut, pas à `mutating`.
+                    ? { type: 'tool_call_client_required', toolCallId: ev.toolCallId, name: ev.name, args: ev.args, mutating: ev.mutating, interactive: ev.interactive, awaiting: true }
                     : { type: 'tool_call_pending', toolCallId: ev.toolCallId, name: ev.name, args: ev.args };
             }
             return null;

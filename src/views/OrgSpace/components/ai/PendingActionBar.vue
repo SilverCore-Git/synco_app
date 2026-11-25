@@ -44,6 +44,30 @@
             <IconSelector model-value="" @on-base64="(base64: string) => $emit('image', base64)" />
         </template>
 
+        <!-- Envoi web retenu par la garde du runtime (10 §4.4) : texte exact, motifs, jamais « toujours accepter » -->
+        <template v-else-if="isWeb">
+            <div class="flex items-start gap-3 text-sm text-(--text)">
+                <span class="icon-badge w-9 h-9 rounded-full bg-sky-500/15 flex items-center justify-center shrink-0">
+                    <i class="bi bi-globe2 text-sky-500 text-base relative z-10" aria-hidden="true"></i>
+                </span>
+                <div class="min-w-0 flex-1 flex flex-col gap-2">
+                    <p class="font-medium pt-1.5">{{ tool.name === 'web_fetch' ? 'Synco AI veut lire cette page. Vérifiez l’adresse avant de l’envoyer :' : 'Synco AI veut envoyer cette recherche sur internet. Vérifiez-la :' }}</p>
+                    <p class="rounded-xl bg-(--bg) border border-(--border-color) px-3 py-2 text-sm break-all whitespace-pre-wrap select-all" :aria-label="tool.name === 'web_fetch' ? 'Adresse complète' : 'Requête exacte'"><template v-for="(seg, i) in webSegments" :key="i"><mark v-if="seg.marked" class="web-mark">{{ seg.text }}</mark><template v-else>{{ seg.text }}</template></template></p>
+                    <p v-if="webSummary" class="text-xs text-(--text2) break-all">{{ webSummary }}</p>
+                    <ul v-if="guard?.reasons.length" class="flex flex-col gap-1 text-xs text-(--text)">
+                        <li v-for="r in guard.reasons" :key="r" class="flex items-start gap-1.5"><i class="bi bi-exclamation-triangle-fill text-amber-500 mt-0.5" aria-hidden="true"></i>{{ capitalize(guardReasonText(r)) }}</li>
+                    </ul>
+                    <p v-else-if="guardState === 'loading'" class="text-xs text-(--text2)">Lecture des motifs…</p>
+                    <p v-else-if="guardState === 'error'" class="text-xs text-(--text2)">Les motifs n’ont pas pu être lus sur cet appareil ; le texte ci-dessus est celui qui partirait.</p>
+                    <p class="text-xs text-(--text2)">Rien n’est envoyé sans votre accord. Les passages surlignés viennent de vos données Synco.</p>
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" @click="$emit('accept')" class="primary px-4 py-2 rounded-xl text-sm font-medium">Envoyer</button>
+                <button type="button" @click="$emit('reject')" class="danger px-4 py-2 rounded-xl text-sm font-medium">Ne pas envoyer</button>
+            </div>
+        </template>
+
         <!-- Confirmation d'une action mutante (create_space, create_task, delete_task...) -->
         <template v-else>
             <div class="flex items-center gap-3 text-sm text-(--text)">
@@ -79,8 +103,13 @@ import { useCalendarAccess } from '@/composables/useCalendarAccess';
 import { summarizeTool, type SummaryContext } from '@/components/ai/summaries/summaryRegistry';
 import { summaryModules } from '@/components/ai/summaries/summaryModules';
 import { orgResolver } from '@/services/aiRuntime/plan/planEnv';
+import { guardedText, guardReasonText, guardSegments, isWebGuardTool, type WebGuard } from '@/services/aiRuntime/conversation/webGuard';
 
-const props = defineProps<{ tool: ToolStep }>();
+/**
+ * `guard` / `guardState` : motifs de la garde web déchiffrés par la vue (runtime seulement) ; sans eux, la carte
+ * web montre quand même le texte exact et les boutons « Envoyer / Ne pas envoyer ».
+ */
+const props = defineProps<{ tool: ToolStep; guard?: WebGuard | null; guardState?: 'loading' | 'ready' | 'none' | 'error' }>();
 const emit = defineEmits<{
     accept: [];
     'always-accept': [];
@@ -140,6 +169,17 @@ const summary = computed(() => {
     }
 });
 
+const isWeb = computed(() => isWebGuardTool(props.tool.name));
+const webSegments = computed(() => guardSegments(guardedText(props.tool.name, args.value) ?? '(texte absent)', props.guard?.spans ?? []));
+/** Précisions du résumé de domaine (site, caractères invisibles, http…), sans répéter le texte. */
+const webSummary = computed(() => {
+    if (!isWeb.value) return '';
+    const s = summarizeTool(props.tool.name, args.value, summaryContext, summaryModules);
+    if (props.tool.name === 'web_fetch') { const i = s.lastIndexOf(' — '); return i >= 0 ? s.slice(i + 3) : ''; }
+    return s.includes('ATTENTION') ? 'ATTENTION : la requête contient des caractères invisibles, non affichés.' : '';
+});
+const capitalize = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
 const answerText = ref('');
 function submitAnswer() {
     const value = answerText.value.trim();
@@ -151,6 +191,14 @@ function submitAnswer() {
 </script>
 
 <style scoped>
+/* Passage de la requête ou de l'adresse qui vient des données de Synco (garde web). */
+.web-mark {
+    background: rgba(245, 158, 11, 0.28);
+    color: inherit;
+    border-radius: 0.25rem;
+    padding: 0 0.1rem;
+}
+
 /* Respiration douce du contour : rappelle que la barre attend une décision
    sans être une alerte agressive (lent, variation d'opacité faible). */
 .action-card {

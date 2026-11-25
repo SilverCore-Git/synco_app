@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { ApiPort, HttpMethod } from '@/services/aiRuntime/ports';
 import {
-    addPolicyMembers, applyPolicyChange, fetchMyFeatures, listPolicies, listPolicyMembers, policyAnnouncement, PolicyApiError, setPolicyMode,
+    addPolicyMembers, applyPolicyChange, disableWebAccess, enableWebAccess, fetchMyFeatures, webProviderLabel, listPolicies, listPolicyMembers, policyAnnouncement, PolicyApiError, setPolicyMode,
     type PendingPolicyChange,
 } from './aiFeaturePolicies';
 
@@ -132,5 +132,52 @@ describe('enregistrement d\'un changement', () => {
         const b = fakeApi(ok);
         await applyPolicyChange(b.api, 'o1', 'runtime_mode', { currentMode: 'list', nextMode: 'none', added: [], removed: [] });
         expect(b.calls).toEqual([{ method: 'PUT', path: '/api/orgs/o1/ai/feature-policies/runtime_mode', body: { mode: 'none' } }]);
+    });
+});
+
+describe('accès web de l’agent (12 §11.3, PC92)', () => {
+    test('GET /me : provider lu pour web_access seulement, nom hors liste ignoré', async () => {
+        const { api } = fakeApi(() => ({ status: 200, body: { features: [
+            { feature: 'web_access', allowed: true, enabled: false, warningVersion: 1, provider: 'staan' },
+            { feature: 'autonomous_mode', allowed: false, enabled: false, warningVersion: 1, provider: 'staan' },
+        ] } }));
+        const out = await fetchMyFeatures(api, 'o1');
+        expect(out[0]).toEqual({ feature: 'web_access', allowed: true, enabled: false, warningVersion: 1, provider: 'staan' });
+        expect(out[1]).not.toHaveProperty('provider');
+        const evil = fakeApi(() => ({ status: 200, body: { features: [{ feature: 'web_access', allowed: true, enabled: true, warningVersion: 1, provider: '<img src=x>' }] } }));
+        expect((await fetchMyFeatures(evil.api, 'o1'))[0]!.provider).toBeNull();
+    });
+
+    test('activation : PUT opt-in avec la version de l’avertissement ; 403 de l’org → PolicyApiError', async () => {
+        const ok = fakeApi(() => ({ status: 200, body: { feature: 'web_access', enabled: true } }));
+        await enableWebAccess(ok.api, 'o 1', 1);
+        expect(ok.calls).toEqual([{ method: 'PUT', path: '/api/orgs/o%201/ai/feature-policies/me/web_access/opt-in', body: { warningVersion: 1 } }]);
+        const denied = fakeApi(() => ({ status: 403, body: { error: 'feature_not_allowed' } }));
+        expect(((await enableWebAccess(denied.api, 'o1', 1).catch(e => e)) as PolicyApiError).code).toBe('feature_not_allowed');
+        const none = fakeApi(() => ({ status: 200, body: {} }));
+        expect(((await enableWebAccess(none.api, 'o1', 0).catch(e => e)) as PolicyApiError).code).toBe('invalid_body');
+        expect(none.calls).toHaveLength(0);
+    });
+
+    test('désactivation : DELETE opt-in ; déjà désactivé (404) = succès ; autre erreur levée', async () => {
+        const a = fakeApi(() => ({ status: 200, body: { feature: 'web_access', enabled: false, revoked: [] } }));
+        await disableWebAccess(a.api, 'o1');
+        expect(a.calls).toEqual([{ method: 'DELETE', path: '/api/orgs/o1/ai/feature-policies/me/web_access/opt-in', body: undefined }]);
+        await disableWebAccess(fakeApi(() => ({ status: 404, body: { error: 'not_found' } })).api, 'o1');
+        expect(((await disableWebAccess(fakeApi(() => ({ status: 500, body: null })).api, 'o1').catch(e => e)) as PolicyApiError).code).toBe('api_error');
+    });
+
+    test('nom du service : connu ou phrase neutre, jamais une valeur brute', () => {
+        expect(webProviderLabel('staan')).toBe('Staan');
+        expect(webProviderLabel('mojeek')).toBe('Mojeek');
+        expect(webProviderLabel(null)).toContain('choisi par votre organisation');
+    });
+
+    test('annonce du retrait : nombre exact et conséquence propre au web', () => {
+        const a = policyAnnouncement(change({ feature: 'web_access', enabledCount: 2 }));
+        expect(a.affected).toBe(2);
+        expect(a.text).toContain('ne cherche plus sur internet');
+        const one = policyAnnouncement(change({ feature: 'web_access', currentMode: 'list', nextMode: 'list', removed: [{ name: 'Inès', enabled: true }] }));
+        expect(one.text).toContain("Inès utilise l'accès web de l'agent");
     });
 });

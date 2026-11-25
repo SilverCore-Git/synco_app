@@ -5,7 +5,7 @@
  */
 import type { ApiPort } from '@/services/aiRuntime/ports';
 
-export const POLICY_FEATURES = ['autonomous_mode', 'runtime_mode', 'tool_auto_accept'] as const;
+export const POLICY_FEATURES = ['autonomous_mode', 'runtime_mode', 'tool_auto_accept', 'web_access'] as const;
 export type PolicyFeature = (typeof POLICY_FEATURES)[number];
 export type PolicyMode = 'all' | 'none' | 'list';
 
@@ -37,6 +37,27 @@ export interface MyFeature {
     allowed: boolean;
     enabled: boolean;
     warningVersion: number | null;
+    /**
+     * `web_access` seulement : service de recherche déclaré par le runtime de l'org (`staan`, `mojeek`, `searxng`,
+     * `brave`) ; `null` si le runtime n'en a déclaré aucun (ou n'est pas encore connecté).
+     */
+    provider?: WebProvider | null;
+}
+
+/** Services de recherche connus (synco_ai_runtime/docs/plan/10 §4.2) ; tout autre nom est ignoré. */
+export const WEB_PROVIDERS = ['staan', 'mojeek', 'searxng', 'brave'] as const;
+export type WebProvider = (typeof WEB_PROVIDERS)[number];
+const isWebProvider = (v: unknown): v is WebProvider => typeof v === 'string' && (WEB_PROVIDERS as readonly string[]).includes(v);
+
+/** Nom lisible du service, pour l'avertissement (12 §11.3). */
+export function webProviderLabel(p: WebProvider | null | undefined): string {
+    switch (p) {
+        case 'staan': return 'Staan';
+        case 'mojeek': return 'Mojeek';
+        case 'searxng': return "l'instance SearXNG de votre organisation";
+        case 'brave': return 'Brave Search';
+        default: return 'le service de recherche choisi par votre organisation';
+    }
 }
 
 /** Erreur typée d'une route de politique : l'UI ne lit que `code` (corps `{ error }` de l'API). */
@@ -66,7 +87,7 @@ async function call(api: ApiPort, method: 'GET' | 'POST' | 'PUT' | 'DELETE', pat
     return res.body;
 }
 
-/** Les trois cartes, dans l'ordre de l'API ; une fonctionnalité inconnue (réservée) est ignorée. */
+/** Les cartes, dans l'ordre de l'API ; une fonctionnalité inconnue (réservée) est ignorée. */
 export async function listPolicies(api: ApiPort, orgId: string): Promise<PolicySummary[]> {
     const body = await call(api, 'GET', base(orgId));
     const rows = Array.isArray(body.policies) ? body.policies : [];
@@ -171,12 +192,39 @@ export async function listPolicyEvents(api: ApiPort, orgId: string, feature: Pol
 export async function fetchMyFeatures(api: ApiPort, orgId: string): Promise<MyFeature[]> {
     const body = await call(api, 'GET', `${base(orgId)}/me`);
     const rows = Array.isArray(body.features) ? body.features : [];
-    return rows.filter(isObj).filter(r => isPolicyFeature(r.feature)).map(r => ({
-        feature: r.feature as PolicyFeature,
-        allowed: r.allowed === true,
-        enabled: r.enabled === true,
-        warningVersion: typeof r.warningVersion === 'number' ? r.warningVersion : null,
-    }));
+    return rows.filter(isObj).filter(r => isPolicyFeature(r.feature)).map(r => {
+        const f: MyFeature = {
+            feature: r.feature as PolicyFeature,
+            allowed: r.allowed === true,
+            enabled: r.enabled === true,
+            warningVersion: typeof r.warningVersion === 'number' ? r.warningVersion : null,
+        };
+        if (f.feature === 'web_access') f.provider = isWebProvider(r.provider) ? r.provider : null;
+        return f;
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Accès web de l'agent (12 §11.3, L00i, PC92) : activé par chacun, après l'avertissement
+// ---------------------------------------------------------------------------
+
+const webOptInPath = (orgId: string) => `${base(orgId)}/me/web_access/opt-in`;
+
+/**
+ * `PUT …/me/web_access/opt-in { warningVersion }` : seulement si l'org l'autorise (sinon `403 feature_not_allowed`,
+ * levé en `PolicyApiError`). Aucune délégation à redéposer : le prochain bail du runtime rend `webAllowed`.
+ */
+export async function enableWebAccess(api: ApiPort, orgId: string, warningVersion: number): Promise<void> {
+    if (!Number.isSafeInteger(warningVersion) || warningVersion < 1) throw new PolicyApiError('invalid_body', 400);
+    await call(api, 'PUT', webOptInPath(orgId), { warningVersion });
+}
+
+/** `DELETE …/me/web_access/opt-in` : le runtime ferme aussitôt le socket `web` (déjà désactivé = succès). */
+export async function disableWebAccess(api: ApiPort, orgId: string): Promise<void> {
+    const res = await api.request('DELETE', webOptInPath(orgId));
+    if (res.status === 404 || (res.status >= 200 && res.status < 300)) return;
+    const code = isObj(res.body) && typeof res.body.error === 'string' ? res.body.error : 'api_error';
+    throw new PolicyApiError(code, res.status);
 }
 
 // ---------------------------------------------------------------------------
@@ -205,16 +253,19 @@ const CONSEQUENCE: Record<PolicyFeature, string> = {
     autonomous_mode: 'Leurs conversations reprennent en mode plan.',
     runtime_mode: 'Leurs conversations reviennent en local et leur délégation est révoquée.',
     tool_auto_accept: 'Leurs « Toujours accepter » cessent de s\'appliquer.',
+    web_access: "L'agent ne cherche plus sur internet pour elles ; une recherche en cours est coupée.",
 };
 const CONSEQUENCE_ONE: Record<PolicyFeature, string> = {
     autonomous_mode: 'ses conversations reprennent en mode plan',
     runtime_mode: 'ses conversations reviennent en local et sa délégation est révoquée',
     tool_auto_accept: 'ses « Toujours accepter » cessent de s\'appliquer',
+    web_access: "l'agent ne cherche plus sur internet pour elle",
 };
 const FEATURE_LABEL: Record<PolicyFeature, string> = {
     autonomous_mode: 'le mode autonome',
     runtime_mode: 'le mode runtime',
     tool_auto_accept: 'le « Toujours accepter »',
+    web_access: "l'accès web de l'agent",
 };
 
 /**

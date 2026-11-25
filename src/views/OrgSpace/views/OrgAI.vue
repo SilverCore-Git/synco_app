@@ -336,6 +336,8 @@
           <div v-if="pendingAction" :key="pendingAction.tool.toolCallId" class="w-full max-w-5xl mx-auto mb-2">
             <PendingActionBar
               :tool="pendingAction.tool"
+              :guard="webGuard"
+              :guard-state="webGuardState"
               @accept="acceptPendingAction()"
               @always-accept="acceptPendingAction(true)"
               @reject="rejectPendingAction()"
@@ -390,6 +392,9 @@ import { connectRuntimeConversation } from '@/services/aiRuntime/conversation/co
 import { linkBanner, statusLabel, isBusyStatus } from '@/services/aiRuntime/conversation/status';
 import type { TranscriptMessage } from '@/services/aiRuntime/conversation/transcript';
 import { runtimeDeps } from '@/services/aiRuntimeUi';
+import { isWebGuardTool, loadWebGuard, type WebGuard } from '@/services/aiRuntime/conversation/webGuard';
+import { fetchPendingToolCall } from '@/services/aiRuntime/conversation/wiring';
+import { openConversationKey } from '@/services/aiRuntime';
 import MarkdownRender from './MarkdownRender.vue';
 import type { TurnPart, ToolStep } from '../components/ai/agentTypes';
 import UsersBarToggle from '@/views/OrgSpace/components/layouts/UsersBarToggle.vue';
@@ -921,6 +926,32 @@ const pendingAction = computed<{ idx: number; tool: ToolStep } | null>(() => {
   const toolPart = (msg.parts || []).find((p) => p.type === 'tool' && p.tool.status === 'pending') as { type: 'tool'; tool: ToolStep } | undefined;
   return toolPart ? { idx, tool: toolPart.tool } : null;
 });
+
+/**
+ * Motifs de la garde web (10 §4.4) de l'appel en attente : `pendingToolCall.guard` relu par l'API et déchiffré
+ * sous `CK`. Runtime seulement ; jamais bloquant (sans motifs, la carte montre le texte exact).
+ */
+const webGuard = ref<WebGuard | null>(null);
+const webGuardState = ref<'loading' | 'ready' | 'none' | 'error'>('none');
+let webGuardToken = 0;
+watch(() => (isRuntime.value && pendingAction.value && isWebGuardTool(pendingAction.value.tool.name) ? pendingAction.value.tool.toolCallId : null), async (toolCallId) => {
+  const token = ++webGuardToken;
+  webGuard.value = null;
+  webGuardState.value = 'none';
+  const orgId = openedOrg.value?.id;
+  const sessionId = activeSessionId.value;
+  if (!toolCallId || !orgId || !sessionId) return;
+  webGuardState.value = 'loading';
+  try {
+    const deps = runtimeDeps();
+    const g = await loadWebGuard({ fetchPending: () => fetchPendingToolCall(orgId, sessionId), openKey: () => openConversationKey(deps, orgId, sessionId) }, sessionId, toolCallId);
+    if (token !== webGuardToken) return;
+    webGuard.value = g;
+    webGuardState.value = g ? 'ready' : 'none';
+  } catch {
+    if (token === webGuardToken) webGuardState.value = 'error';
+  }
+}, { immediate: true });
 
 /** Décision sur un outil en attente d'une conversation runtime : le runtime reprend et le flux continue. */
 function decideOnRuntime(tool: ToolStep, accept: boolean, value?: string) {

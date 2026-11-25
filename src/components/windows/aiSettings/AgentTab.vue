@@ -77,6 +77,25 @@
             </div>
         </section>
 
+        <section v-if="webFeature" class="row" :class="!webFeature.allowed && !webFeature.enabled ? 'opacity-60' : ''">
+            <div class="row-title">
+                <h4><i class="bi bi-globe2"></i> Accès web</h4>
+                <p>L'agent peut chercher sur internet et lire des pages publiques, depuis le runtime de l'organisation.<template v-if="webFeature.allowed"> Votre organisation l'a ouvert ; à vous de l'activer.</template></p>
+            </div>
+            <div class="card space-y-4">
+                <div class="flex items-center gap-4">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-(--text)">Laisser Synco AI chercher sur internet</p>
+                        <p class="text-xs text-(--text2)">{{ webHint }}</p>
+                    </div>
+                    <Switch :model-value="webFeature.enabled || askingWeb" @update:model-value="onWebToggle" :class="webToggleBlocked ? 'pointer-events-none opacity-50' : ''" />
+                </div>
+                <p v-if="!webFeature.allowed && !webFeature.enabled" class="text-sm text-(--text2)">Votre organisation n'a pas ouvert l'accès web. Un administrateur peut le faire dans la sécurité de Synco AI.</p>
+                <WebAccessWarning v-if="askingWeb" :provider-name="webProviderLabel(webFeature.provider)" :busy="busy" @cancel="askingWeb = false" @confirm="runEnableWeb" />
+                <p v-if="webError" class="text-sm text-red-500" role="alert">{{ webError }}</p>
+            </div>
+        </section>
+
         <section v-if="!featuresFailed && (!confirmFeature || confirmFeature.allowed)" class="row">
             <div class="row-title">
                 <h4><i class="bi bi-check2-circle"></i> Confirmations</h4>
@@ -117,11 +136,12 @@ import {
     explainRuntimeError, loadRuntimeAdminView, previousPinnedFingerprint, runtimeDeps, type RuntimeAdminView, type RuntimeProblem,
 } from '@/services/aiRuntimeUi';
 import { autonomyToggleDisabled, redelegateAfterKeyAcceptance } from '@/services/aiAgentRules';
-import { fetchMyFeatures, type MyFeature } from '@/services/aiFeaturePolicies';
+import { disableWebAccess, enableWebAccess, fetchMyFeatures, PolicyApiError, webProviderLabel, type MyFeature } from '@/services/aiFeaturePolicies';
 import { autoAcceptLabel, useAutoAcceptTools } from '@/services/aiAutoAccept';
 import { personOf } from '@/views/OrgSpace/views/settings/views/components/policyMembers';
 import AutonomyWarning from './AutonomyWarning.vue';
 import AgentAlertsSections from './AgentAlertsSections.vue';
+import WebAccessWarning from './WebAccessWarning.vue';
 
 const emit = defineEmits<{ examine: [] }>();
 
@@ -144,6 +164,7 @@ const featureOf = (f: MyFeature['feature']) => features.value.find(x => x.featur
 const runtimeFeature = computed(() => featureOf('runtime_mode'));
 const autoFeature = computed(() => featureOf('autonomous_mode'));
 const confirmFeature = computed(() => featureOf('tool_auto_accept'));
+const webFeature = computed(() => featureOf('web_access'));
 
 const onRuntime = computed(() => !!delegation.value && delegation.value.status === 'active');
 const runtimeChoosable = computed(() => !!admin.value?.runtime && (runtimeFeature.value?.allowed ?? true));
@@ -230,6 +251,55 @@ const runEnableAutonomy = async () => {
     if (version === null || version === undefined) { autonomyProblem.value = explainRuntimeError(null); return; }
     const ok = await run(async () => { delegation.value = await enableAutonomousMode(deps, orgId.value, version); }, 'autonomy');
     if (ok) { askingAutonomy.value = false; toast.show('Mode autonome activé.', 'success'); await refresh(); }
+};
+
+// Accès web (12 §11.3, PC92) : ouvert par l'org, activé par chacun après l'avertissement ; aucune délégation à
+// redéposer, le prochain bail du runtime rend `webAllowed`. Désactiver est toujours possible.
+const askingWeb = ref(false);
+const webError = ref('');
+const webToggleBlocked = computed(() => busy.value || !webFeature.value || (!webFeature.value.allowed && !webFeature.value.enabled));
+const webHint = computed(() => {
+    const f = webFeature.value;
+    if (f?.enabled) return `Activé · recherches envoyées à ${webProviderLabel(f.provider)}. Ce qui semble venir de Synco vous est montré avant l'envoi.`;
+    if (f?.allowed && !onRuntime.value) return "Ne sert que lorsque l'agent tourne sur le runtime de l'organisation.";
+    return "Désactivé · l'agent ne sort jamais de Synco.";
+});
+const WEB_ERRORS: Record<string, string> = {
+    feature_not_allowed: "Votre organisation n'autorise plus l'accès web.",
+    invalid_body: "L'avertissement a changé : relisez-le avant d'activer.",
+};
+const webErrorText = (e: unknown) => (e instanceof PolicyApiError && WEB_ERRORS[e.code]) || "Le réglage n'a pas pu être enregistré. Réessayez.";
+const onWebToggle = async (value: boolean) => {
+    if (webToggleBlocked.value) return;
+    webError.value = '';
+    if (value) { askingWeb.value = true; return; }
+    askingWeb.value = false;
+    busy.value = true;
+    try {
+        await disableWebAccess(deps.api, orgId.value);
+        toast.show("Accès web désactivé : l'agent ne cherche plus sur internet.", 'success');
+        await refresh();
+    } catch (e) {
+        webError.value = webErrorText(e);
+    } finally {
+        busy.value = false;
+    }
+};
+const runEnableWeb = async () => {
+    const version = webFeature.value?.warningVersion;
+    if (version === null || version === undefined) { webError.value = webErrorText(null); return; }
+    busy.value = true;
+    try {
+        await enableWebAccess(deps.api, orgId.value, version);
+        askingWeb.value = false;
+        toast.show('Accès web activé.', 'success');
+        await refresh();
+    } catch (e) {
+        webError.value = webErrorText(e);
+        if (e instanceof PolicyApiError && e.code === 'feature_not_allowed') askingWeb.value = false;
+    } finally {
+        busy.value = false;
+    }
 };
 
 const { list: accepted, remove: removeAccepted } = useAutoAcceptTools(() => orgId.value);

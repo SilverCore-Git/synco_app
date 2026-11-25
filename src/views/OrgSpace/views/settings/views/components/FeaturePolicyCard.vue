@@ -15,6 +15,10 @@
             </div>
         </header>
 
+        <p v-if="note" class="mt-4 text-sm text-(--text) leading-relaxed rounded-2xl bg-(--bg) px-4 py-3 flex items-start gap-3">
+            <i class="bi bi-building-check text-(--primary) mt-0.5 shrink-0" aria-hidden="true"></i><span class="min-w-0 break-words">{{ note }}</span>
+        </p>
+
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5" role="radiogroup" :aria-label="`Qui peut utiliser : ${meta.title}`">
             <label v-for="o in options" :key="o.mode" class="option" :class="draftMode === o.mode ? 'option-on' : ''">
                 <input type="radio" class="sr-only" :name="`mode-${summary.feature}`" :value="o.mode" v-model="draftMode" :disabled="saving" />
@@ -89,9 +93,17 @@ const METAS: Record<PolicyFeature, Meta> = {
         risk: "Ne plus demander pour une action déjà acceptée. Jamais possible pour une suppression ou un envoi hors de Synco.",
         all: 'Valeur par défaut', none: 'Chaque action se valide',
     },
+    web_access: {
+        title: "Accès web de l'agent", icon: 'bi-globe2', showUsage: true,
+        iconClass: 'bg-sky-500/15 text-sky-500', cardClass: 'border-sky-500/40',
+        risk: "L'agent cherche sur internet et lit des pages publiques. Les recherches sortent de Synco vers le service choisi par votre runtime ; une page lue peut contenir des consignes piégées.",
+        all: "Chaque membre peut l'activer pour lui", none: 'Valeur conseillée, administrateurs compris',
+        noneNote: "Personne ne peut activer l'accès web : l'agent ne cherche jamais sur internet.",
+    },
 };
 
-const props = defineProps<{ summary: PolicySummary; api: ApiPort; orgId: string }>();
+/** `note` : précision propre à l'org (ex. service de recherche déclaré par le runtime), texte seulement. */
+const props = defineProps<{ summary: PolicySummary; api: ApiPort; orgId: string; note?: string }>();
 const emit = defineEmits<{ state: [feature: PolicyFeature, dirty: boolean, announcement: PolicyAnnouncement] }>();
 
 const meta = computed(() => METAS[props.summary.feature]);
