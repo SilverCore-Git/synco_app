@@ -91,7 +91,7 @@ export function applyAgentEvent(messages: TranscriptMessage[], st: TranscriptSta
         case 'tool_call_client_required': {
             const t = turn(messages, st);
             const tool = upsertTool(t.parts!, ev.toolCallId, {
-                name: ev.name, args: ev.args, status: ev.mutating || ev.interactive ? 'pending' : 'executing',
+                name: ev.name, args: ev.args, status: ev.awaiting || ev.mutating || ev.interactive ? 'pending' : 'executing',
                 category: 'client', mutating: ev.mutating, interactive: ev.interactive,
             });
             return tool ? null : 'plan';
