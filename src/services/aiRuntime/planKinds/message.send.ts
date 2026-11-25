@@ -1,22 +1,24 @@
-/** Kind `message.send` (12 §4.2) : `send_message` et `forward_message`, exécutés par l'appareil (`m3` d'auteur `ai`). */
-import type { JsonObject } from '@/assets/utils/aiActionPlan';
-import { MESSAGE_KIND_EXPORTS, checkMessageKindArgs } from '@/assets/utils/agentMessagePlan';
+/**
+ * Kind `message.send` (12 §4.2) : `send_message` et `forward_message`, exécutés par l'appareil (`m3` d'auteur `ai`).
+ * Déclare aussi les outils client hors plan `send_message`, `forward_message`, `read_thread_messages`, `get_message`.
+ *
+ * Écart du schéma (`ArgsSchema` n'a pas de type liste) : `mentionUserIds` et `fileIds` n'y figurent pas, `validatePlan`
+ * les refuse donc encore (`plan_args`) ; l'exécutant et `checkMessageKindArgs` les gèrent déjà. À rouvrir quand
+ * `ParamSpec` saura exprimer une liste d'identifiants (aiActionPlan.ts, fichier commun).
+ */
+import type { ArgsSchema, JsonObject } from '@/assets/utils/aiActionPlan';
 import { sendAgentThreadMessage } from '../agentMessaging';
-import type { PlanKindExecutor } from './registry';
-import { ids, need, quote, str, type Resolve } from '../messageKindShared';
+import { threadReadTools } from '../messageReadTools';
+import { assertKindArgs, assertOrgOpen, ids, need, quote, str } from '../messageKindShared';
+import type { PlanClientTool, PlanKindExecutor } from './registry';
 
-export const kind = 'message.send';
-/** Validation stricte des `args` de l'action (champs, bornes, doublons, `argsRefs`). */
-export const schema = (action: JsonObject): boolean => checkMessageKindArgs({ ...action, kind });
-export const exports = MESSAGE_KIND_EXPORTS['message.send'];
-export const icon = 'bi-chat-left-text';
-export const risk = 'R1' as const;
-export function label(args: JsonObject, resolve: Resolve): string {
-    const t = str(args.threadId);
-    const where = t ? `#${resolve('thread', t) ?? 'salon'}` : 'un salon';
-    if (str(args.forwardOf)) return `Transférer un message dans ${where}`;
-    return `Écrire dans ${where} : « ${quote(str(args.text) ?? '')} »`;
-}
+const schema: ArgsSchema = new Map([
+    ['threadId', { type: 'string', required: true, id: true }],
+    // 0 : un transfert peut n'avoir aucun commentaire ; le minimum de 1 hors transfert est revérifié avant l'envoi.
+    ['text', { type: 'string', required: true, min: 0, max: 8000 }],
+    ['replyTo', { type: 'string', required: false, id: true }],
+    ['forwardOf', { type: 'string', required: false, id: true }],
+]);
 
 const toArgs = (a: JsonObject) => ({
     threadId: need(str(a.threadId)),
@@ -27,20 +29,42 @@ const toArgs = (a: JsonObject) => ({
     forwardOf: str(a.forwardOf),
 });
 
-/** Outils client exécutés hors plan (fournisseur piloté par le serveur ou le navigateur). */
-export const clientTools = [
-    { name: 'send_message', run: (args: JsonObject) => sendAgentThreadMessage(toArgs(args)) },
+const clientTools: readonly PlanClientTool[] = [
     {
-        name: 'forward_message',
-        run: (args: JsonObject) => sendAgentThreadMessage({ threadId: need(str(args.toThreadId)), text: str(args.comment) ?? '', forwardOf: need(str(args.messageId)) }),
+        name: 'send_message', label: "Envoi d'un message", icon: 'bi-chat-left-text',
+        async run(args, { orgId }) {
+            assertOrgOpen(orgId);
+            assertKindArgs('message.send', args as JsonObject);
+            return sendAgentThreadMessage(toArgs(args as JsonObject));
+        },
     },
+    {
+        name: 'forward_message', label: "Transfert d'un message", icon: 'bi-forward',
+        async run(args, { orgId }) {
+            assertOrgOpen(orgId);
+            const a = args as JsonObject;
+            const forward = { threadId: need(str(a.toThreadId)), text: str(a.comment) ?? '', forwardOf: need(str(a.messageId)) };
+            assertKindArgs('message.send', forward);
+            return sendAgentThreadMessage(forward);
+        },
+    },
+    ...threadReadTools,
 ];
-export const clientTool = clientTools[0];
 
 const executor: PlanKindExecutor = {
-    kind,
-    async execute(args, planHeader) {
+    kind: 'message.send',
+    tool: 'send_message',
+    schema,
+    exports: ['id', 'threadId'],
+    label: a => str(a.forwardOf) ? 'Transférer un message dans un salon' : `Écrire dans un salon : « ${quote(str(a.text) ?? '')} »`,
+    chip: n => `${n} ${n > 1 ? 'messages' : 'message'}`,
+    icon: 'bi-chat-left-text',
+    title: "Envoi d'un message",
+    async execute(args, planHeader, orgId) {
+        assertOrgOpen(orgId);
+        assertKindArgs('message.send', args);
         return sendAgentThreadMessage(toArgs(args), planHeader);
     },
+    clientTools,
 };
 export default executor;

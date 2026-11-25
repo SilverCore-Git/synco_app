@@ -1,24 +1,37 @@
 /** Kind `dm.edit` (12 §4.2) : `edit_dm`, appareil seulement (EX-13) ; seul un MP de l'utilisateur. */
-import type { JsonObject } from '@/assets/utils/aiActionPlan';
-import { MESSAGE_KIND_EXPORTS, checkMessageKindArgs } from '@/assets/utils/agentMessagePlan';
+import type { ArgsSchema, JsonObject } from '@/assets/utils/aiActionPlan';
 import { editAgentDm } from '../agentMessaging';
+import { assertKindArgs, assertOrgOpen, need, quote, str } from '../messageKindShared';
 import type { PlanKindExecutor } from './registry';
-import { need, quote, str } from '../messageKindShared';
 
-export const kind = 'dm.edit';
-export const schema = (action: JsonObject): boolean => checkMessageKindArgs({ ...action, kind });
-export const exports = MESSAGE_KIND_EXPORTS['dm.edit'];
-export const icon = 'bi-pencil';
-export const risk = 'R2' as const;
-export const label = (args: JsonObject): string => `Modifier un de mes messages privés : « ${quote(str(args.text) ?? '')} »`;
+const schema: ArgsSchema = new Map([
+    ['dmMessageId', { type: 'string', required: true, id: true }],
+    ['text', { type: 'string', required: true, min: 1, max: 8000 }],
+]);
 
 const toArgs = (a: JsonObject) => ({ dmMessageId: need(str(a.dmMessageId)), text: need(str(a.text)) });
-export const clientTool = { name: 'edit_dm', run: (args: JsonObject) => editAgentDm(toArgs(args)) };
 
 const executor: PlanKindExecutor = {
-    kind,
-    async execute(args, planHeader) {
+    kind: 'dm.edit',
+    tool: 'edit_dm',
+    schema,
+    exports: ['id'],
+    label: a => `Modifier un de mes messages privés : « ${quote(str(a.text) ?? '')} »`,
+    chip: n => `${n} ${n > 1 ? 'messages privés modifiés' : 'message privé modifié'}`,
+    icon: 'bi-pencil',
+    title: "Modification d'un message privé",
+    async execute(args, planHeader, orgId) {
+        assertOrgOpen(orgId);
+        assertKindArgs('dm.edit', args);
         return editAgentDm(toArgs(args), planHeader);
     },
+    clientTools: [{
+        name: 'edit_dm', label: "Modification d'un message privé", icon: 'bi-pencil',
+        async run(args, { orgId }) {
+            assertOrgOpen(orgId);
+            assertKindArgs('dm.edit', args as JsonObject);
+            return editAgentDm(toArgs(args as JsonObject));
+        },
+    }],
 };
 export default executor;
