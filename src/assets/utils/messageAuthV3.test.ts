@@ -146,10 +146,12 @@ describe("m3 auteur rt1: (mode autonome) et déclaration du texte", () => {
         expect(r.agent).toMatchObject({ text: "text_unverified", reason: "absent" });
     });
 
-    test("sans vérificateur de mandat : au mieux unsigned, la déclaration reste contrôlée", async () => {
+    test("sans vérificateur de mandat : invalid (jamais unsigned affiché) ; avec un vérificateur « unsigned », la déclaration reste contrôlée", async () => {
         const { td, salt } = await declared("ok");
         const key = await threadKey();
         const m = await runtimeMessage(key, am.encodeTextEnvelope(salt, "ok"), td);
+        expect((await ma.decryptThreadMessageV2(m.ciphertext, m.iv, key, CTX)).auth).toBe("invalid");
+        ma.setRt1AuthorVerifier(async () => "unsigned");
         const r = await ma.decryptThreadMessageV2(m.ciphertext, m.iv, key, CTX);
         expect(r.auth).toBe("unsigned");
         expect(r.agent).toMatchObject({ text: "text_verified" });

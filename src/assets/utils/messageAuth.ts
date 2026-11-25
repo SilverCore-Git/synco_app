@@ -346,8 +346,8 @@ export type AgentMark =
 
 /**
  * Vérification d'un auteur `rt1:` (12 §4.3 : mandat de la délégation, certificat, signature `csk`). Branchée par
- * l'app quand le mandat est vérifiable ; sans vérificateur, l'état est `unsigned` (affiché, jamais « vérifié »), et la
- * déclaration du texte signée par l'utilisateur reste contrôlée.
+ * l'app quand le mandat est vérifiable ; SANS vérificateur, l'état est `invalid` (le message est masqué, comme toute
+ * origine non vérifiée). La déclaration du texte signée par l'utilisateur est contrôlée ensuite.
  */
 export type Rt1AuthorVerifier = (input: {
     delegationId: string;
@@ -442,9 +442,10 @@ async function decryptThreadMessageV3(
     }
 
     const delegationId = rt1DelegationOf(p.author)!;
-    let auth: MessageAuthState = 'unsigned';
-    if (replayed || !p.signature) auth = 'invalid';
-    else if (rt1Verifier) {
+    // Sans vérificateur (03 §10 : mandat, certificat, `csk` couvrant `td`), un auteur `rt1:` n'est PAS vérifiable : il est
+    // `invalid` (masqué), jamais `unsigned` affiché. Le serveur ne peut donc pas faire passer un message pour celui de l'agent.
+    let auth: MessageAuthState = 'invalid';
+    if (!replayed && p.signature && rt1Verifier) {
         try {
             auth = await rt1Verifier({ delegationId, senderId: ctx.senderId, threadId: ctx.threadId, signed: enc.encode(signed), signature: fromB64(p.signature) });
         } catch {
