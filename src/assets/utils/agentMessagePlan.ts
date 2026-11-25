@@ -36,11 +36,11 @@ const isObj = (v: JsonValue | undefined): v is JsonObject => typeof v === 'objec
 const has = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
 const chars = (s: string): number => Array.from(s).length;
 
-type FieldRule = 'id' | 'text' | 'ids50' | 'ids10';
+type FieldRule = 'id' | 'text' | 'ids10';
 const FIELDS: Record<MessageKind, Record<string, { rule: FieldRule; required: boolean }>> = {
     'message.send': {
         threadId: { rule: 'id', required: true }, text: { rule: 'text', required: true }, replyTo: { rule: 'id', required: false },
-        mentionUserIds: { rule: 'ids50', required: false }, fileIds: { rule: 'ids10', required: false }, forwardOf: { rule: 'id', required: false },
+        mentionUserIds: { rule: 'ids10', required: false }, fileIds: { rule: 'ids10', required: false }, forwardOf: { rule: 'id', required: false },
     },
     'message.edit': { messageId: { rule: 'id', required: true }, text: { rule: 'text', required: true } },
     'dm.send': { peerId: { rule: 'id', required: true }, text: { rule: 'text', required: true }, fileIds: { rule: 'ids10', required: false } },
@@ -72,7 +72,7 @@ export function checkMessageKindArgs(action: JsonObject): boolean {
         if (!spec) return false;
         switch (spec.rule) {
             case 'id': if (typeof v !== 'string' || !isValidId(v)) return false; break;
-            case 'ids50': if (!distinctIds(v, 50)) return false; break;
+            
             case 'ids10': if (!distinctIds(v, 10)) return false; break;
             case 'text': {
                 if (typeof v !== 'string' || !isWellFormedText(v)) return false;

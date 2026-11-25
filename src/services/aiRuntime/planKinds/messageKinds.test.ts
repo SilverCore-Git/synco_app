@@ -176,6 +176,13 @@ describe('exécution : refus locaux avant tout envoi', () => {
         }
     });
 
+    test('garde de 10 mentions partout : checkMessageKindArgs comme le schéma de l’appareil', () => {
+        const u = (n: number) => Array.from({ length: n }, (_, i) => `cm3userexample${String(i).padStart(10, '0')}`);
+        const act = (n: number): JsonObject => ({ kind: 'message.send', args: { threadId: 'cm3threadexample000000001', text: 'x', mentionUserIds: u(n) } });
+        expect(checkMessageKindArgs(act(10))).toBe(true);
+        expect(checkMessageKindArgs(act(11))).toBe(false);
+    });
+
     test('args de référence : l’exécutant et le worker partagent la même validation', () => {
         for (const kind of Object.keys(mods)) expect(checkMessageKindArgs({ ...reference.find(a => a.kind === kind)! })).toBe(true);
     });
