@@ -15,6 +15,7 @@ import TaskPanelDock from './views/OrgSpace/components/TaskPanel/TaskPanelDock.v
 import AgentDockColumn from './components/agentDock/AgentDockColumn.vue';
 import ExtensionSuggestion from './components/overlay/ExtensionSuggestion.vue';
 import UpdateAvailable from './components/overlay/UpdateAvailable.vue';
+import MinVersionBanner from './components/overlay/MinVersionBanner.vue';
 import V4MigrationDialog from './components/e2ee/V4MigrationDialog.vue';
 import ConnectionStatusBanner from './components/overlay/ConnectionStatusBanner.vue';
 import RateLimitOverlay from './components/overlay/RateLimitOverlay.vue';
@@ -968,6 +969,9 @@ onMounted(async () => {
 
           <!-- Mise à jour de l'app desktop (tauri-plugin-updater), inerte hors Tauri -->
           <UpdateAvailable v-if="isLoaded" />
+
+          <!-- Version minimale de l'app publiée par l'API (PC107) : bandeau non bloquant -->
+          <MinVersionBanner v-if="isLoaded" />
 
           <!-- Migration v3 → v4 acceptée sur l'écran de déverrouillage : reprend avec les clés déjà ouvertes -->
           <V4MigrationDialog v-if="isLoaded" takes-handoff />
