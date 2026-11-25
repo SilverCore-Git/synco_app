@@ -22,6 +22,8 @@ import {
     type AbandonCode,
 } from '@/assets/utils/aiActionPlan';
 import { RuntimeFormatError } from '@/assets/utils/runtimeCert';
+import { messageTarget } from '@/assets/utils/agentMessagePlan';
+import { targetDigest } from '@/assets/utils/agentMessage';
 import { AiRuntimeError, apiError } from './errors';
 import type { ApiPort } from './ports';
 
@@ -162,11 +164,29 @@ export async function openPlan(input: OpenPlanInput): Promise<OpenedPlan> {
         }
     }
     const digests = await planServerDigests(plan);
+    for (const [n, hex] of await planTargetDigests(plan, graph)) digests.set(n, hex);
     const served = Object.keys(view.serverDigests);
     if (served.length !== digests.size || [...digests].some(([n, hex]) => view.serverDigests[String(n)] !== hex)) {
         throw new AiRuntimeError('plan_digest_mismatch');
     }
     return { plan, graph, digests };
+}
+
+/**
+ * Empreintes de CIBLE (12 §8.4 point 6) des `message.send` / `message.edit` d'exécutant agent : l'API ne voit pas le
+ * texte (E2EE) mais la cible, `serverDigests[n]` = SHA-256(JCS({ kind, target, argsRefs })). Recalculées ici depuis
+ * le plan DÉCHIFFRÉ, comme celles des `server.call` (PC69). Une action d'appareil n'a aucune empreinte.
+ */
+export async function planTargetDigests(plan: JsonObject, graph: PlanGraph): Promise<Map<number, string>> {
+    const out = new Map<number, string>();
+    const actions = Array.isArray(plan.actions) ? plan.actions : [];
+    for (const a of graph.actions) {
+        if (a.executor !== 'agent') continue;
+        const action = actions[a.n - 1];
+        const t = isObj(action) ? messageTarget(action as JsonObject) : null;
+        if (t) out.set(a.n, await targetDigest(t.kind, t.target, t.argsRefs));
+    }
+    return out;
 }
 
 export interface AcceptDecision {
@@ -183,7 +203,8 @@ export interface RejectDecision {
 
 /**
  * Corps de la décision `accept` (12 §12.1, PC69) : actions cochées moins la cascade (PC37), et pour
- * chaque `server.call` acceptée l'empreinte recalculée depuis le plan déchiffré.
+ * chaque `server.call` acceptée (et chaque `message.send` / `message.edit` d'agent, cible, §8.4 point 6) l'empreinte
+ * recalculée depuis le plan déchiffré.
  */
 export function buildAcceptDecision(opened: OpenedPlan, checked: readonly number[]): AcceptDecision {
     const all = opened.graph.actions.map(a => a.n);
